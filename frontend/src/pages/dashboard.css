@@ -1,0 +1,172 @@
+/* ============================================================
+   frontend/src/pages/dashboard.css
+   Dashboard page styles
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+.dashboard-page {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #0f0c29 0%, #302b63 60%, #24243e 100%);
+  font-family: 'Inter', sans-serif;
+  color: #e2e8f0;
+}
+
+/* ─── Top nav ─────────────────────────────────────────────── */
+.dashboard-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 2rem;
+  background: rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  backdrop-filter: blur(12px);
+}
+
+.nav-logo {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #fff;
+  text-decoration: none;
+}
+
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.nav-user {
+  font-size: 0.85rem;
+  color: rgba(255,255,255,0.6);
+}
+
+.btn-logout {
+  padding: 0.45rem 1rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.15);
+  background: transparent;
+  color: rgba(255,255,255,0.7);
+  font-size: 0.85rem;
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.btn-logout:hover {
+  background: rgba(255,255,255,0.08);
+  border-color: rgba(255,255,255,0.25);
+}
+
+/* ─── Main content ─────────────────────────────────────────── */
+.dashboard-main {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 3rem 2rem;
+}
+
+/* ─── Welcome hero ─────────────────────────────────────────── */
+.welcome-hero {
+  margin-bottom: 3rem;
+}
+
+.welcome-hero h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #fff;
+  margin: 0 0 0.4rem;
+  letter-spacing: -0.02em;
+}
+
+.welcome-hero p {
+  font-size: 1rem;
+  color: rgba(255,255,255,0.5);
+  margin: 0;
+}
+
+/* ─── Step cards grid (placeholder modules) ───────────────── */
+.module-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.module-card {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.09);
+  border-radius: 14px;
+  padding: 1.5rem;
+  transition: transform 0.2s, border-color 0.2s;
+  cursor: default;
+}
+
+.module-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(168,85,247,0.35);
+}
+
+.module-card-icon {
+  font-size: 1.6rem;
+  margin-bottom: 0.75rem;
+  display: block;
+}
+
+.module-card h3 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #fff;
+  margin: 0 0 0.3rem;
+}
+
+.module-card p {
+  font-size: 0.8rem;
+  color: rgba(255,255,255,0.45);
+  margin: 0;
+}
+
+.badge-coming {
+  display: inline-block;
+  margin-top: 0.6rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 99px;
+  background: rgba(168,85,247,0.15);
+  border: 1px solid rgba(168,85,247,0.3);
+  font-size: 0.7rem;
+  color: #c084fc;
+  font-weight: 500;
+}
+
+/* ─── Info strip ─────────────────────────────────────────── */
+.info-strip {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 2rem;
+}
+
+.info-pill {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 99px;
+  padding: 0.4rem 1rem;
+  font-size: 0.82rem;
+  color: rgba(255,255,255,0.65);
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+/* ─── Responsive ─────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .dashboard-main  { padding: 2rem 1rem; }
+  .dashboard-nav   { padding: 1rem; }
+  .welcome-hero h1 { font-size: 1.5rem; }
+  .module-grid     { grid-template-columns: 1fr 1fr; }
+}

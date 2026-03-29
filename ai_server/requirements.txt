@@ -1,0 +1,45 @@
+# ============================================================
+# ai_server/requirements.txt
+#
+# IMPORTANT: This must be installed in a Python 3.11 venv.
+# Python 3.14 is NOT compatible with PyTorch/Whisper CUDA wheels.
+#
+# Setup:
+#   1. From the ai_server/ directory:
+#      py -3.11 -m venv venv
+#      venv\Scripts\activate
+#
+#   2. Install PyTorch (Whisper requires it — CPU build, safe on all machines):
+#      pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu118
+#
+#   3. Install llama-cpp-python (CPU-only build, GTX 1650 CUDA can be unstable):
+#      pip install llama-cpp-python
+#
+#      If you want to try CUDA acceleration for llama-cpp-python (optional):
+#      set CMAKE_ARGS=-DLLAMA_CUDA=on && pip install llama-cpp-python --force-reinstall
+#
+#   4. Install remaining dependencies:
+#      pip install -r requirements.txt
+#
+# Model path: C:\Users\saadh\Models\mistral-7b-instruct-v0.2.Q4_K_M.gguf
+# ============================================================
+
+# Web framework
+flask==3.0.3
+flask-cors==4.0.1
+
+# Speech-to-text (Whisper)
+openai-whisper==20250625
+
+# PyTorch (required by Whisper — CPU + CUDA auto-detected)
+# Install BEFORE running: pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu118
+torch>=2.2.0
+torchaudio>=2.2.0
+
+# LLM inference (llama-cpp-python — replaces Ollama)
+# Install separately: pip install llama-cpp-python
+llama-cpp-python
+
+# Utilities
+numpy>=1.24.0
+python-dotenv==1.0.1

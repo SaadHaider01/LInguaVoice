@@ -1,0 +1,97 @@
+{
+  "level": "A1",
+  "module": "questions",
+  "module_number": 2,
+  "lessons": [
+    {
+      "lesson_id": "a1_module2_lesson2_american",
+      "lesson_number": 2,
+      "accent": "american",
+      "title": "Asking Simple Questions",
+      "duration_minutes": 8,
+      "system_prompt": "Teach the student to ask and answer: 'What is your name?', 'Where are you from?', 'How are you?', 'What do you do?'. Practice question intonation and short answers. American variant: casual, conversational tone.",
+      "steps": [
+        {
+          "step": 1,
+          "type": "warmup",
+          "teacher_prompt": "Welcome back! Today we're learning how to ask questions. Let's start easy — can you ask me: 'How are you?' Go ahead and ask me!",
+          "expected_student_response": "Student asks 'How are you?'",
+          "next_step_trigger": "student_speaks"
+        },
+        {
+          "step": 2,
+          "type": "input",
+          "teacher_prompt": "Great question! I'm doing well, thank you! Now let's learn another question: 'What is your name?' This is how you ask someone their name. Can you try asking me?",
+          "expected_student_response": "Student asks 'What is your name?'",
+          "next_step_trigger": "student_speaks"
+        },
+        {
+          "step": 3,
+          "type": "guided",
+          "teacher_prompt": "Perfect! Now try this one: 'Where are you from?' This asks about someone's country. Ask me where I'm from!",
+          "expected_student_response": "Student asks 'Where are you from?'",
+          "next_step_trigger": "student_speaks"
+        },
+        {
+          "step": 4,
+          "type": "free",
+          "teacher_prompt": "Awesome! Now let's have a real conversation. I'll pretend to be a new person you just met. Ask me any question you remember from today — be natural!",
+          "expected_student_response": "Student asks one or more of the learned questions naturally",
+          "next_step_trigger": "student_speaks"
+        },
+        {
+          "step": 5,
+          "type": "feedback",
+          "teacher_prompt": "You did an awesome job today! You learned four important questions in English. Practice asking these to real people and you'll improve super fast!",
+          "expected_student_response": null,
+          "next_step_trigger": "auto"
+        }
+      ]
+    },
+    {
+      "lesson_id": "a1_module2_lesson2_british",
+      "lesson_number": 2,
+      "accent": "british",
+      "title": "Asking Simple Questions",
+      "duration_minutes": 8,
+      "system_prompt": "Teach the student to ask and answer: 'What is your name?', 'Where are you from?', 'How are you?', 'What do you do?'. Practice question intonation and polite short answers. British variant: polite, measured tone.",
+      "steps": [
+        {
+          "step": 1,
+          "type": "warmup",
+          "teacher_prompt": "Welcome back! Today we shall learn how to ask questions politely. Let's begin — could you ask me: 'How are you?' Have a go!",
+          "expected_student_response": "Student asks 'How are you?'",
+          "next_step_trigger": "student_speaks"
+        },
+        {
+          "step": 2,
+          "type": "input",
+          "teacher_prompt": "Lovely question! I'm very well, thank you for asking. Now, the next question is: 'What is your name?' You use this to ask someone their name politely. Would you like to try asking me?",
+          "expected_student_response": "Student asks 'What is your name?'",
+          "next_step_trigger": "student_speaks"
+        },
+        {
+          "step": 3,
+          "type": "guided",
+          "teacher_prompt": "Excellent! Now try this: 'Where are you from?' This is how you enquire about someone's home country. Please do ask me!",
+          "expected_student_response": "Student asks 'Where are you from?'",
+          "next_step_trigger": "student_speaks"
+        },
+        {
+          "step": 4,
+          "type": "free",
+          "teacher_prompt": "Brilliant! Let's have a proper conversation now. Imagine we've just met at a social gathering. Ask me any questions you've learned today — be as natural as you can.",
+          "expected_student_response": "Student asks one or more learned questions naturally",
+          "next_step_trigger": "student_speaks"
+        },
+        {
+          "step": 5,
+          "type": "feedback",
+          "teacher_prompt": "Marvellous effort today! You've practised four essential English questions. Do keep practising with people around you — it makes all the difference!",
+          "expected_student_response": null,
+          "next_step_trigger": "auto"
+        }
+      ]
+    }
+  ]
+}

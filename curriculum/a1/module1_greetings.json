@@ -1,0 +1,97 @@
+{
+  "level": "A1",
+  "module": "greetings",
+  "module_number": 1,
+  "lessons": [
+    {
+      "lesson_id": "a1_module1_lesson1_american",
+      "lesson_number": 1,
+      "accent": "american",
+      "title": "Hello! Introduce Yourself",
+      "duration_minutes": 8,
+      "system_prompt": "Teach the student to say: 'My name is [name]', 'I am from [country]', 'I work as [job]', 'Nice to meet you'. Use simple, friendly language. American variant: casual, warm tone. Keep all sentences at A1 level — short, simple, clear.",
+      "steps": [
+        {
+          "step": 1,
+          "type": "warmup",
+          "teacher_prompt": "Hi there! I'm so happy to meet you today. Can you tell me your name? Just say: 'My name is...' and then your name!",
+          "expected_student_response": "Student says their name using 'My name is [name]'",
+          "next_step_trigger": "student_speaks"
+        },
+        {
+          "step": 2,
+          "type": "input",
+          "teacher_prompt": "Great! Now let's learn how to say where you're from. You say: 'I am from [country]'. For example, I might say 'I am from the United States.' Now, where are you from?",
+          "expected_student_response": "Student says their country using 'I am from [country]'",
+          "next_step_trigger": "student_speaks"
+        },
+        {
+          "step": 3,
+          "type": "guided",
+          "teacher_prompt": "Wonderful! Now let's talk about your job. You say: 'I work as a [job]'. For example: 'I work as a teacher.' What do you do for work?",
+          "expected_student_response": "Student says their job using 'I work as a [job]'",
+          "next_step_trigger": "student_speaks"
+        },
+        {
+          "step": 4,
+          "type": "free",
+          "teacher_prompt": "You're doing amazing! Now let's put it all together. Introduce yourself completely: your name, where you're from, and your job. Go ahead!",
+          "expected_student_response": "Student gives a full self-introduction combining all three phrases",
+          "next_step_trigger": "student_speaks"
+        },
+        {
+          "step": 5,
+          "type": "feedback",
+          "teacher_prompt": "Excellent work today! You learned how to introduce yourself in English. You can now say your name, where you're from, and your job. Keep practicing and you'll get even better!",
+          "expected_student_response": null,
+          "next_step_trigger": "auto"
+        }
+      ]
+    },
+    {
+      "lesson_id": "a1_module1_lesson1_british",
+      "lesson_number": 1,
+      "accent": "british",
+      "title": "Hello! Introduce Yourself",
+      "duration_minutes": 8,
+      "system_prompt": "Teach the student to say: 'My name is [name]', 'I am from [country]', 'I work as [job]', 'Lovely to meet you'. Use simple, polite language. British variant: slightly formal, courteous tone. Keep all sentences at A1 level — short, simple, clear.",
+      "steps": [
+        {
+          "step": 1,
+          "type": "warmup",
+          "teacher_prompt": "Hello! Lovely to meet you today. Could you tell me your name, please? Try saying: 'My name is...' and then your name.",
+          "expected_student_response": "Student says their name using 'My name is [name]'",
+          "next_step_trigger": "student_speaks"
+        },
+        {
+          "step": 2,
+          "type": "input",
+          "teacher_prompt": "Splendid! Now, let's learn how to say where you come from. You say: 'I am from [country]'. For instance, one might say 'I am from the United Kingdom.' Where are you from?",
+          "expected_student_response": "Student says their country using 'I am from [country]'",
+          "next_step_trigger": "student_speaks"
+        },
+        {
+          "step": 3,
+          "type": "guided",
+          "teacher_prompt": "Brilliant! Now let's talk about your profession. You say: 'I work as a [job]'. For example: 'I work as an engineer.' What is your occupation?",
+          "expected_student_response": "Student says their job using 'I work as a [job]'",
+          "next_step_trigger": "student_speaks"
+        },
+        {
+          "step": 4,
+          "type": "free",
+          "teacher_prompt": "Well done! Now, could you introduce yourself fully? Tell me your name, where you're from, and what you do. Take your time.",
+          "expected_student_response": "Student gives a full self-introduction",
+          "next_step_trigger": "student_speaks"
+        },
+        {
+          "step": 5,
+          "type": "feedback",
+          "teacher_prompt": "Marvellous work today! You've learned how to introduce yourself in English. You can now say your name, where you're from, and your job. Carry on practising and you'll do wonderfully!",
+          "expected_student_response": null,
+          "next_step_trigger": "auto"
+        }
+      ]
+    }
+  ]
+}

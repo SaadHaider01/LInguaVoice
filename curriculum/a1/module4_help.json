@@ -1,0 +1,97 @@
+{
+  "level": "A1",
+  "module": "help",
+  "module_number": 4,
+  "lessons": [
+    {
+      "lesson_id": "a1_module4_lesson4_american",
+      "lesson_number": 4,
+      "accent": "american",
+      "title": "Can You Help Me?",
+      "duration_minutes": 8,
+      "system_prompt": "Teach the student survival phrases: 'Can you help me?', 'I don't understand', 'Can you repeat that?', 'How do you say [word]?'. These are real-world phrases for when the student needs assistance. American variant: friendly, direct tone.",
+      "steps": [
+        {
+          "step": 1,
+          "type": "warmup",
+          "teacher_prompt": "Hey! Today we're learning super important phrases — phrases you can use whenever you need help. The first one is: 'Can you help me?' Say it after me!",
+          "expected_student_response": "Student says 'Can you help me?'",
+          "next_step_trigger": "student_speaks"
+        },
+        {
+          "step": 2,
+          "type": "input",
+          "teacher_prompt": "Perfect! Now here's another great one: 'I don't understand.' You use this when something is confusing. Try saying: 'I don't understand.'",
+          "expected_student_response": "Student says 'I don't understand'",
+          "next_step_trigger": "student_speaks"
+        },
+        {
+          "step": 3,
+          "type": "guided",
+          "teacher_prompt": "Great! Sometimes people talk too fast. You can say: 'Can you repeat that?' This asks them to say it again. Give it a try!",
+          "expected_student_response": "Student says 'Can you repeat that?'",
+          "next_step_trigger": "student_speaks"
+        },
+        {
+          "step": 4,
+          "type": "free",
+          "teacher_prompt": "You're doing so well! Now imagine you're in a store and you need help. Use any of today's phrases to ask for help — be creative!",
+          "expected_student_response": "Student uses one or more learned survival phrases in a real-world context",
+          "next_step_trigger": "student_speaks"
+        },
+        {
+          "step": 5,
+          "type": "feedback",
+          "teacher_prompt": "Amazing job! You now have the most important survival phrases in English. Use them whenever you need help — people will always appreciate it. You're going to do great!",
+          "expected_student_response": null,
+          "next_step_trigger": "auto"
+        }
+      ]
+    },
+    {
+      "lesson_id": "a1_module4_lesson4_british",
+      "lesson_number": 4,
+      "accent": "british",
+      "title": "Can You Help Me?",
+      "duration_minutes": 8,
+      "system_prompt": "Teach the student survival phrases: 'Can you help me?', 'I don't understand', 'Could you repeat that, please?', 'How do you say [word]?'. These are real-world phrases for when the student needs assistance. British variant: polite, considerate tone.",
+      "steps": [
+        {
+          "step": 1,
+          "type": "warmup",
+          "teacher_prompt": "Hello! Today we shall learn some very important phrases — the sort you can use whenever you need a little help. The first phrase is: 'Can you help me?' Please give it a try!",
+          "expected_student_response": "Student says 'Can you help me?'",
+          "next_step_trigger": "student_speaks"
+        },
+        {
+          "step": 2,
+          "type": "input",
+          "teacher_prompt": "Very good! Here is another essential phrase: 'I don't understand.' You use this when something isn't quite clear. Have a go at saying: 'I don't understand.'",
+          "expected_student_response": "Student says 'I don't understand'",
+          "next_step_trigger": "student_speaks"
+        },
+        {
+          "step": 3,
+          "type": "guided",
+          "teacher_prompt": "Excellent! Sometimes people speak rather quickly. In that case, you can say: 'Could you repeat that, please?' This is a very polite way to ask someone to say something again. Please try it!",
+          "expected_student_response": "Student says 'Could you repeat that, please?'",
+          "next_step_trigger": "student_speaks"
+        },
+        {
+          "step": 4,
+          "type": "free",
+          "teacher_prompt": "Brilliant! Now, imagine you are in a shop and you are unsure about something. Use any of today's phrases to ask for assistance — do your best!",
+          "expected_student_response": "Student uses one or more learned survival phrases in a real-world context",
+          "next_step_trigger": "student_speaks"
+        },
+        {
+          "step": 5,
+          "type": "feedback",
+          "teacher_prompt": "Wonderful effort today! You've learned some of the most useful phrases in the English language. Don't hesitate to use them whenever you need help — people will always be pleased to assist. Carry on — you're doing marvellously!",
+          "expected_student_response": null,
+          "next_step_trigger": "auto"
+        }
+      ]
+    }
+  ]
+}

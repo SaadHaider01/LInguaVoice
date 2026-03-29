@@ -1,0 +1,97 @@
+{
+  "level": "A1",
+  "module": "work",
+  "module_number": 3,
+  "lessons": [
+    {
+      "lesson_id": "a1_module3_lesson3_american",
+      "lesson_number": 3,
+      "accent": "american",
+      "title": "My Job and Daily Routine",
+      "duration_minutes": 8,
+      "system_prompt": "Teach the student to describe their job: 'I am a [job]', 'I work at [place]', 'I start work at [time]', 'My job is [adjective]'. Use present simple tense only. American variant: casual, upbeat tone.",
+      "steps": [
+        {
+          "step": 1,
+          "type": "warmup",
+          "teacher_prompt": "Hey! Today we're going to talk about jobs. Tell me — what do you do for work? Try using: 'I am a...' Go for it!",
+          "expected_student_response": "Student says their job using 'I am a [job]'",
+          "next_step_trigger": "student_speaks"
+        },
+        {
+          "step": 2,
+          "type": "input",
+          "teacher_prompt": "Cool! Now let's say where you work. You say: 'I work at [place]'. For example: 'I work at a hospital' or 'I work at home'. Where do you work?",
+          "expected_student_response": "Student says their workplace using 'I work at [place]'",
+          "next_step_trigger": "student_speaks"
+        },
+        {
+          "step": 3,
+          "type": "guided",
+          "teacher_prompt": "Nice! Let's talk about your schedule. Say: 'I start work at [time]'. For example: 'I start work at nine o'clock.' What time do you start work?",
+          "expected_student_response": "Student says their start time using 'I start work at [time]'",
+          "next_step_trigger": "student_speaks"
+        },
+        {
+          "step": 4,
+          "type": "free",
+          "teacher_prompt": "You're crushing it! Now tell me everything about your job — what you do, where you work, and when you start. Make it sound natural!",
+          "expected_student_response": "Student gives a full description of their job routine",
+          "next_step_trigger": "student_speaks"
+        },
+        {
+          "step": 5,
+          "type": "feedback",
+          "teacher_prompt": "You did fantastic today! Now you can talk about your job in English. Remember: 'I am a...', 'I work at...', 'I start at...'. Great work — see you next time!",
+          "expected_student_response": null,
+          "next_step_trigger": "auto"
+        }
+      ]
+    },
+    {
+      "lesson_id": "a1_module3_lesson3_british",
+      "lesson_number": 3,
+      "accent": "british",
+      "title": "My Job and Daily Routine",
+      "duration_minutes": 8,
+      "system_prompt": "Teach the student to describe their job: 'I am a [job]', 'I work at [place]', 'I start work at [time]', 'My job is [adjective]'. Use present simple tense only. British variant: professional, measured tone.",
+      "steps": [
+        {
+          "step": 1,
+          "type": "warmup",
+          "teacher_prompt": "Good day! Today we shall talk about occupations. Could you tell me what you do for a living? Try saying: 'I am a...' — off you go!",
+          "expected_student_response": "Student says their job using 'I am a [job]'",
+          "next_step_trigger": "student_speaks"
+        },
+        {
+          "step": 2,
+          "type": "input",
+          "teacher_prompt": "Very good! Now let's say where you are employed. The phrase is: 'I work at [place]'. For example: 'I work at a school' or 'I work at an office'. Where do you work?",
+          "expected_student_response": "Student says their workplace using 'I work at [place]'",
+          "next_step_trigger": "student_speaks"
+        },
+        {
+          "step": 3,
+          "type": "guided",
+          "teacher_prompt": "Splendid! Now, what time do you begin work? Say: 'I start work at [time]'. For instance: 'I start work at half past eight.' What time do you start?",
+          "expected_student_response": "Student says their start time using 'I start work at [time]'",
+          "next_step_trigger": "student_speaks"
+        },
+        {
+          "step": 4,
+          "type": "free",
+          "teacher_prompt": "Jolly good! Now could you describe your working life — your job, your workplace, and when you commence work? Take your time and speak naturally.",
+          "expected_student_response": "Student gives a full description of their job routine",
+          "next_step_trigger": "student_speaks"
+        },
+        {
+          "step": 5,
+          "type": "feedback",
+          "teacher_prompt": "Well done indeed! You can now describe your work in English. Remember the key phrases: 'I am a...', 'I work at...', 'I start work at...'. Carry on practising — you're doing brilliantly!",
+          "expected_student_response": null,
+          "next_step_trigger": "auto"
+        }
+      ]
+    }
+  ]
+}
