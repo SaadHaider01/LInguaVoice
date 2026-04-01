@@ -3,18 +3,12 @@ import { AuthProvider } from "./contexts/AuthContext";
 import ProtectedRoute   from "./components/ProtectedRoute";
 
 // ─── Pages ───────────────────────────────────────────────────────────────────
-import SignupPage    from "./pages/SignupPage";
-import LoginPage     from "./pages/LoginPage";
-import ResetPage     from "./pages/ResetPage";
-import DashboardPage from "./pages/DashboardPage";
-
-// ─── Stub pages (built in later Steps) ───────────────────────────────────────
-function DiagnosticStub() {
-  return <Stub title="Speaking Assessment" step={3} next="/accent" />;
-}
-function AccentStub() {
-  return <Stub title="Choose Your Accent" step={4} next="/dashboard" />;
-}
+import SignupPage      from "./pages/SignupPage";
+import LoginPage       from "./pages/LoginPage";
+import ResetPage       from "./pages/ResetPage";
+import DashboardPage   from "./pages/DashboardPage";
+import DiagnosticPage  from "./pages/DiagnosticPage";
+import AccentPage      from "./pages/AccentPage";
 function LessonStub() {
   return <Stub title="Lesson Player" step={5} next="/dashboard" />;
 }
@@ -55,10 +49,10 @@ export default function App() {
 
           {/* Protected routes — redirect to /login if not authenticated */}
           <Route path="/diagnostic" element={
-            <ProtectedRoute><DiagnosticStub /></ProtectedRoute>
+            <ProtectedRoute><DiagnosticPage /></ProtectedRoute>
           } />
           <Route path="/accent" element={
-            <ProtectedRoute><AccentStub /></ProtectedRoute>
+            <ProtectedRoute><AccentPage /></ProtectedRoute>
           } />
           <Route path="/dashboard" element={
             <ProtectedRoute><DashboardPage /></ProtectedRoute>

@@ -1,72 +1,79 @@
-# ============================================================
-# ai_server/whisper_handler.py
-# Handles speech-to-text using OpenAI Whisper (local, base model)
-#
-# Memory strategy: model is loaded fresh per request and released
-# after transcription — keeps VRAM usage low on GTX 1650 (4GB).
-# This adds ~2-3s overhead per call but is necessary on 8GB RAM.
-# ============================================================
-
+import os
+import sys
 import gc
-import torch
 import whisper
+import tempfile
 
-# Whisper model size — "base" uses ~1GB VRAM, good for GTX 1650
-WHISPER_MODEL_SIZE = "base"
+# Force ffmpeg path for Windows
+os.environ["PATH"] = (
+    r"C:\Windows\System32" + os.pathsep + 
+    os.environ.get("PATH", "")
+)
 
+# Also set ffmpeg path directly for whisper
+import whisper.audio
+whisper.audio.FFMPEG = r"C:\Windows\System32\ffmpeg.exe"
 
-def transcribe_audio(audio_path: str) -> dict:
-    """
-    Transcribe an audio file using Whisper.
+def transcribe_audio(audio_bytes: bytes,
+                     mime_type: str = 'audio/webm') -> str:
 
-    Args:
-        audio_path: Absolute path to audio file (WAV, WebM, MP3, etc.)
+    ext_map = {
+        'audio/webm': '.webm',
+        'audio/wav': '.wav',
+        'audio/mp4': '.mp4',
+        'audio/ogg': '.ogg',
+        'audio/mpeg': '.mp3',
+    }
+    suffix = ext_map.get(mime_type, '.webm')
 
-    Returns:
-        dict with keys:
-          - transcript  (str): the transcribed text
-          - language    (str): detected language code, e.g. "en"
-          - confidence  (float): average log-probability as a 0-1 score
-    """
-    model = None
+    tmp_path = os.path.join(
+        tempfile.gettempdir(),
+        f'whisper_audio_{os.getpid()}{suffix}'
+    )
+
     try:
-        print(f"[Whisper] Loading {WHISPER_MODEL_SIZE} model...")
-        # Load model to GPU if available, else CPU
-        device = "cuda" if torch.cuda.is_available() else "cpu"
-        model = whisper.load_model(WHISPER_MODEL_SIZE, device=device)
-        print(f"[Whisper] Model loaded on {device}. Transcribing...")
+        with open(tmp_path, 'wb') as f:
+            f.write(audio_bytes)
 
-        result = model.transcribe(
-            audio_path,
-            language="en",       # force English — MVP scope
-            fp16=torch.cuda.is_available(),  # fp16 only on GPU
+        print(f'[Whisper] Saved to {tmp_path}')
+        print(f'[Whisper] Size: {os.path.getsize(tmp_path)} bytes')
+        
+        # Verify ffmpeg is accessible
+        import subprocess
+        result = subprocess.run(
+            ['ffmpeg', '-version'], 
+            capture_output=True, 
+            text=True
         )
+        print(f'[Whisper] ffmpeg check: {result.returncode}')
 
-        transcript = result.get("text", "").strip()
-        language   = result.get("language", "en")
+        print(f'[Whisper] Loading model...')
+        model = whisper.load_model('base')
+        print(f'[Whisper] Transcribing...')
 
-        # Calculate rough confidence from segment log-probs
-        segments = result.get("segments", [])
-        if segments:
-            avg_logprob = sum(s.get("avg_logprob", -1.0) for s in segments) / len(segments)
-            # Convert log-prob to 0-1 (clamp: -1.0 → ~0.37, 0.0 → 1.0)
-            import math
-            confidence = round(min(1.0, max(0.0, math.exp(avg_logprob))), 3)
-        else:
-            confidence = 0.0
+        result = model.transcribe(tmp_path, language='en')
+        transcript = result['text'].strip()
 
-        print(f"[Whisper] Done. Transcript length: {len(transcript)} chars. Confidence: {confidence}")
-        return {
-            "transcript": transcript,
-            "language":   language,
-            "confidence": confidence,
-        }
+        print(f'[Whisper] Transcript: {transcript[:100]}')
+
+        # Cleanup model from memory
+        del model
+        gc.collect()
+        import ctypes
+        ctypes.windll.kernel32.SetProcessWorkingSetSize(-1, -1, -1)
+
+        print(f'[Whisper] Done.')
+        return transcript
+
+    except Exception as e:
+        print(f'[Whisper] ERROR: {type(e).__name__}: {e}')
+        import traceback
+        traceback.print_exc()
+        raise e
 
     finally:
-        # Unload model and free VRAM immediately
-        if model is not None:
-            del model
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
-        gc.collect()
-        print("[Whisper] Model unloaded, memory freed.")
+        if os.path.exists(tmp_path):
+            try:
+                os.remove(tmp_path)
+            except Exception as cleanup_err:
+                print(f'[Whisper] Cleanup warning: {cleanup_err}')

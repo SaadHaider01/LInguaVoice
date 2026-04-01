@@ -37,10 +37,12 @@ if (!admin.apps.length) {
   }
 }
 
-const authRoutes     = require("./routes/auth");
-const lessonRoutes   = require("./routes/lessons");
-const progressRoutes = require("./routes/progress");
-const paymentRoutes  = require("./routes/payments");
+const authRoutes       = require("./routes/auth");
+const lessonRoutes     = require("./routes/lessons");
+const progressRoutes   = require("./routes/progress");
+const paymentRoutes    = require("./routes/payments");
+const diagnosticRoutes = require("./routes/diagnostic");
+const accentRoutes     = require("./routes/accent");
 
 const app  = express();
 const PORT = process.env.PORT || 3001;
@@ -76,10 +78,12 @@ app.get("/health", (_req, res) => {
 });
 
 // ─── API routes ───────────────────────────────────────────────────────────────
-app.use("/api/auth",     authRoutes);
-app.use("/api/lessons",  lessonRoutes);
-app.use("/api/progress", progressRoutes);
-app.use("/api/payments", paymentRoutes);
+app.use("/api/auth",       authRoutes);
+app.use("/api/diagnostic", diagnosticRoutes);
+app.use("/api/accent",     accentRoutes);
+app.use("/api/lessons",    lessonRoutes);
+app.use("/api/progress",   progressRoutes);
+app.use("/api/payments",   paymentRoutes);
 
 // ─── 404 handler ─────────────────────────────────────────────────────────────
 app.use((_req, res) => {

@@ -1,0 +1,360 @@
+/* ============================================================
+   frontend/src/pages/diagnostic.css
+   ============================================================ */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+.diag-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #0f0c29 0%, #302b63 55%, #24243e 100%);
+  font-family: 'Inter', sans-serif;
+  padding: 1.5rem;
+  position: relative;
+  overflow: hidden;
+}
+
+/* subtle animated glow behind mic */
+.diag-page::before {
+  content: '';
+  position: absolute;
+  width: 600px;
+  height: 600px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(168,85,247,0.08) 0%, transparent 70%);
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  animation: pulse-bg 4s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes pulse-bg {
+  0%, 100% { transform: translate(-50%, -50%) scale(1);   opacity: 0.6; }
+  50%       { transform: translate(-50%, -50%) scale(1.2); opacity: 1;   }
+}
+
+/* ─── Card ──────────────────────────────────────────────────── */
+.diag-card {
+  background: rgba(255,255,255,0.05);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 24px;
+  padding: 2.5rem 2.75rem;
+  width: 100%;
+  max-width: 520px;
+  box-shadow: 0 30px 60px rgba(0,0,0,0.4);
+  position: relative;
+  z-index: 1;
+}
+
+/* ─── Header ────────────────────────────────────────────────── */
+.diag-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+.diag-header h1 {
+  font-size: 1.55rem;
+  font-weight: 700;
+  color: #fff;
+  margin: 0 0 0.4rem;
+  letter-spacing: -0.02em;
+}
+.diag-header p {
+  font-size: 0.88rem;
+  color: rgba(255,255,255,0.5);
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* ─── Prompt card (shown during recording) ──────────────────── */
+.prompt-card {
+  background: rgba(168,85,247,0.1);
+  border: 1px solid rgba(168,85,247,0.25);
+  border-radius: 14px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.5rem;
+  font-size: 0.9rem;
+  color: rgba(255,255,255,0.8);
+  line-height: 1.6;
+  min-height: 60px;
+  display: flex;
+  align-items: center;
+  transition: opacity 0.4s;
+}
+.prompt-card span { opacity: 0.55; font-size: 0.8rem; margin-right: 0.5rem; }
+
+/* ─── Waveform canvas ───────────────────────────────────────── */
+.waveform-wrap {
+  height: 64px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.07);
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.waveform-canvas {
+  width: 100%;
+  height: 64px;
+  display: block;
+}
+.waveform-idle {
+  font-size: 0.8rem;
+  color: rgba(255,255,255,0.2);
+}
+
+/* ─── Timer ─────────────────────────────────────────────────── */
+.diag-timer {
+  text-align: center;
+  font-size: 2.4rem;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: 0.04em;
+  margin-bottom: 1.2rem;
+  font-variant-numeric: tabular-nums;
+  transition: color 0.3s;
+}
+.diag-timer.urgent { color: #f87171; }
+
+/* ─── Mic button ────────────────────────────────────────────── */
+.mic-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.mic-btn {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+  position: relative;
+}
+.mic-btn.idle {
+  background: linear-gradient(135deg, #7c3aed, #a855f7);
+  box-shadow: 0 8px 30px rgba(168,85,247,0.4);
+}
+.mic-btn.idle:hover {
+  transform: scale(1.08);
+  box-shadow: 0 12px 40px rgba(168,85,247,0.6);
+}
+.mic-btn.recording {
+  background: linear-gradient(135deg, #dc2626, #f87171);
+  box-shadow: 0 8px 30px rgba(220,38,38,0.5);
+  animation: mic-pulse 1.2s ease-in-out infinite;
+}
+@keyframes mic-pulse {
+  0%, 100% { box-shadow: 0 8px 30px rgba(220,38,38,0.5); }
+  50%       { box-shadow: 0 8px 50px rgba(220,38,38,0.9); }
+}
+
+.mic-btn svg { width: 32px; height: 32px; color: #fff; }
+
+.mic-label {
+  font-size: 0.82rem;
+  color: rgba(255,255,255,0.45);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+/* ─── Minimum time notice ───────────────────────────────────── */
+.min-notice {
+  text-align: center;
+  font-size: 0.8rem;
+  color: rgba(255,255,255,0.3);
+  margin-top: -0.5rem;
+}
+
+/* ─── Primary action button ─────────────────────────────────── */
+.diag-btn {
+  width: 100%;
+  padding: 0.9rem;
+  border-radius: 12px;
+  border: none;
+  background: linear-gradient(90deg, #7c3aed, #a855f7);
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 600;
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  transition: opacity 0.2s, transform 0.15s;
+}
+.diag-btn:hover:not(:disabled) { opacity: 0.9; transform: translateY(-1px); }
+.diag-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.diag-btn.danger {
+  background: linear-gradient(90deg, #dc2626, #ef4444);
+}
+
+/* ─── Analyzing state ───────────────────────────────────────── */
+.analyzing-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 1rem 0;
+}
+.analyzing-spinner {
+  width: 56px;
+  height: 56px;
+  border: 3px solid rgba(168,85,247,0.2);
+  border-top-color: #a855f7;
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.analyzing-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+}
+.step-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.85rem;
+  color: rgba(255,255,255,0.55);
+  padding: 0.4rem 0.75rem;
+  border-radius: 8px;
+  transition: color 0.3s, background 0.3s;
+}
+.step-item.active {
+  color: #c4b5fd;
+  background: rgba(168,85,247,0.1);
+}
+.step-item.done { color: #86efac; }
+.step-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+/* ─── Results ───────────────────────────────────────────────── */
+.results-wrap { display: flex; flex-direction: column; gap: 1.25rem; }
+
+.level-badge {
+  text-align: center;
+  padding: 1.5rem;
+  background: linear-gradient(135deg, rgba(124,58,237,0.2), rgba(168,85,247,0.1));
+  border: 1px solid rgba(168,85,247,0.3);
+  border-radius: 16px;
+}
+.level-badge .level-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: rgba(255,255,255,0.45);
+  margin-bottom: 0.4rem;
+}
+.level-badge .level-value {
+  font-size: 3rem;
+  font-weight: 800;
+  color: #c4b5fd;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+.level-badge .level-summary {
+  font-size: 0.85rem;
+  color: rgba(255,255,255,0.6);
+  margin-top: 0.5rem;
+  line-height: 1.5;
+}
+
+.scores-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 0.75rem;
+}
+.score-item {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px;
+  padding: 0.75rem;
+  text-align: center;
+}
+.score-item .s-label {
+  font-size: 0.7rem;
+  color: rgba(255,255,255,0.4);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 0.3rem;
+}
+.score-item .s-value {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #a855f7;
+}
+
+.accent-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 1rem;
+  border-radius: 99px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  font-size: 0.82rem;
+  color: rgba(255,255,255,0.6);
+}
+
+.feedback-section h4 {
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba(255,255,255,0.4);
+  margin: 0 0 0.5rem;
+}
+.feedback-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.feedback-list li {
+  font-size: 0.85rem;
+  color: rgba(255,255,255,0.7);
+  padding-left: 1.2rem;
+  position: relative;
+  line-height: 1.4;
+}
+.feedback-list li::before { content: '•'; position: absolute; left: 0; color: #a855f7; }
+.feedback-list.improvements li::before { color: #fbbf24; }
+
+/* ─── Error state ───────────────────────────────────────────── */
+.diag-error {
+  background: rgba(239,68,68,0.1);
+  border: 1px solid rgba(239,68,68,0.25);
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  font-size: 0.87rem;
+  color: #fca5a5;
+  text-align: center;
+  margin-bottom: 1rem;
+  line-height: 1.5;
+}
+
+/* ─── Responsive ─────────────────────────────────────────────── */
+@media (max-width: 480px) {
+  .diag-card { padding: 2rem 1.25rem; border-radius: 18px; }
+  .scores-grid { grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem; }
+  .diag-timer { font-size: 2rem; }
+}

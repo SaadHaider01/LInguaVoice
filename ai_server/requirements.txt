@@ -12,21 +12,23 @@
 #   2. Install PyTorch (Whisper requires it — CPU build, safe on all machines):
 #      pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu118
 #
-#   3. Install llama-cpp-python (CPU-only build, GTX 1650 CUDA can be unstable):
-#      pip install llama-cpp-python
-#
-#      If you want to try CUDA acceleration for llama-cpp-python (optional):
-#      set CMAKE_ARGS=-DLLAMA_CUDA=on && pip install llama-cpp-python --force-reinstall
-#
-#   4. Install remaining dependencies:
+#   3. Install remaining dependencies:
 #      pip install -r requirements.txt
 #
-# Model path: C:\Users\saadh\Models\mistral-7b-instruct-v0.2.Q4_K_M.gguf
+# LLM: Groq cloud API (free tier — 14,400 req/day)
+#   Requires GROQ_API_KEY in ai_server/.env
+#   Get key free at: https://console.groq.com
+#
+# Local Mistral GGUF kept at:
+#   C:\Users\saadh\Models\mistral-7b-instruct-v0.2.Q4_K_M.gguf
+#   (reserved for offline mode — not loaded by default)
 # ============================================================
 
 # Web framework
 flask==3.0.3
 flask-cors==4.0.1
+click==8.1.3
+colorama==0.4.6
 
 # Speech-to-text (Whisper)
 openai-whisper==20250625
@@ -36,9 +38,17 @@ openai-whisper==20250625
 torch>=2.2.0
 torchaudio>=2.2.0
 
-# LLM inference (llama-cpp-python — replaces Ollama)
-# Install separately: pip install llama-cpp-python
-llama-cpp-python
+# LLM inference — Groq cloud API (free tier, replaces local llama-cpp-python)
+# Get a free key at: https://console.groq.com
+# Add to ai_server/.env: GROQ_API_KEY=your_key_here
+groq
+
+# TTS — Kokoro ONNX (local, free, American + British voices)
+# Model: onnx-community/Kokoro-82M-v1.0-ONNX
+# Install: pip install kokoro-onnx soundfile
+# Download voices: see README for hf_hub_download commands
+kokoro-onnx
+soundfile
 
 # Utilities
 numpy>=1.24.0
