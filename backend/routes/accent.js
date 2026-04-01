@@ -49,9 +49,10 @@ router.get("/preview", async (req, res) => {
   if (!decoded) return res.status(401).json({ error: "Unauthorized" });
 
   const accent = req.query.accent || "american";
+  // Short texts synthesize in ~3-5s on CPU vs 30+ for long sentences
   const previewTexts = {
-    american: "Hi there! I'm your American English coach. Together we'll improve your pronunciation, fluency, and confidence. Let's get started!",
-    british:  "Hello! I'm your British English coach. Together we'll refine your pronunciation, expand your vocabulary, and build your confidence. Shall we begin?",
+    american: "Hi! I'm your American English coach. Let's improve together!",
+    british:  "Hello! I'm your British English coach. Shall we begin?",
   };
 
   const text = previewTexts[accent] || previewTexts.american;
@@ -60,7 +61,7 @@ router.get("/preview", async (req, res) => {
     const flaskRes = await axios.post(
       `${FLASK_URL}/synthesize`,
       { text, accent },
-      { responseType: "arraybuffer", timeout: 30_000 }
+      { responseType: "arraybuffer", timeout: 90_000 }  // 90s — Kokoro cold start can take 40s on CPU
     );
 
     res.set("Content-Type", "audio/wav");

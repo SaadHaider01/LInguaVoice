@@ -3,9 +3,10 @@ import io
 import numpy as np
 import soundfile as sf
 
-# Paths relative to this file's location
 _DIR         = os.path.dirname(os.path.abspath(__file__))
-MODEL_PATH   = os.path.join(_DIR, 'model_quantized.onnx')
+# Official kokoro-onnx v1.0 release files — download: python download_kokoro_models.py
+MODEL_PATH   = os.path.join(_DIR, 'kokoro-v1.0.int8.onnx')  # 88MB int8 quantized
+VOICES_PATH  = os.path.join(_DIR, 'voices-v1.0.bin')         # npz file, all 26 voices
 VOICES_DIR   = os.path.join(_DIR, 'voices')
 
 # Voice map — uses .bin files in the voices/ directory
@@ -61,7 +62,18 @@ def synthesize_speech(text: str, accent: str = 'american') -> bytes:
     print(f'[TTS] Text ({len(text)} chars): "{text[:60]}{"..." if len(text) > 60 else ""}"')
     print(f'[TTS] Model: {MODEL_PATH}')
 
-    kokoro = Kokoro(MODEL_PATH, _voice_path(voice))
+    if not os.path.exists(MODEL_PATH):
+        raise RuntimeError(
+            f"kokoro-v1_0.onnx not found at {MODEL_PATH}. "
+            "Run: python download_kokoro_models.py"
+        )
+    if not os.path.exists(VOICES_PATH):
+        raise RuntimeError(
+            f"voices.bin not found at {VOICES_PATH}. "
+            "Run: python download_kokoro_models.py"
+        )
+
+    kokoro = Kokoro(MODEL_PATH, VOICES_PATH)
 
     samples, sample_rate = kokoro.create(
         text,

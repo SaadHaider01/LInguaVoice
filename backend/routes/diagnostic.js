@@ -79,26 +79,25 @@ TRANSCRIPT: "${transcript}"
 
 CEFR CRITERIA:
 A1: Only basic phrases, many errors, very limited vocabulary
-A2: Simple sentences, basic communication possible, frequent errors  
+A2: Simple sentences, basic communication possible, frequent errors
 B1: Can discuss familiar topics, some errors, decent vocabulary
 B2: Fluent on most topics, occasional errors, good vocabulary
 C1: Very fluent, rare errors, wide vocabulary, natural expression
 C2: Native-like fluency, near perfect grammar, rich vocabulary
 
-Be accurate — do NOT default to A1. 
-Analyze the actual grammar complexity, 
-vocabulary range, and sentence structure used.
+Be accurate — do NOT default to A1.
+Analyze the actual grammar complexity, vocabulary range, and sentence structure.
 
-Return ONLY this JSON, no other text:
+Return ONLY valid JSON — no markdown, no explanation, nothing else:
 {
-  "level": "A1|A2|B1|B2|C1|C2",
-  "grammar_score": 0-100,
-  "vocabulary_score": 0-100,
-  "fluency_score": 0-100,
-  "detected_native_accent": "Indian|Pakistani|Spanish|Arabic|Chinese|unclear",
-  "strengths": ["specific strength 1", "specific strength 2"],
-  "improvements": ["specific area 1", "specific area 2"],
-  "summary": "One honest sentence about this speaker"
+  "level": "<one of: A1 A2 B1 B2 C1 C2>",
+  "grammar_score": <integer 0-100>,
+  "vocabulary_score": <integer 0-100>,
+  "fluency_score": <integer 0-100>,
+  "detected_native_accent": "<e.g. Indian Pakistani Spanish Arabic Chinese unclear>",
+  "strengths": ["<specific strength>", "<specific strength>"],
+  "improvements": ["<specific area>", "<specific area>"],
+  "summary": "<one honest sentence about this speaker>"
 }`;
 }
 

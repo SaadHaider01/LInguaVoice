@@ -65,20 +65,19 @@
 }
 
 .accent-card {
-  background: rgba(255,255,255,0.05);
+  position:        relative;
+  background:      rgba(255,255,255,0.05);
   backdrop-filter: blur(20px);
-  border: 2px solid rgba(255,255,255,0.08);
-  border-radius: 20px;
-  padding: 2rem 1.75rem;
-  cursor: pointer;
-  transition: border-color 0.25s, transform 0.2s, box-shadow 0.25s;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.75rem;
-  text-align: center;
-  position: relative;
-  overflow: hidden;
+  border:          2px solid rgba(255,255,255,0.08);
+  border-radius:   20px;
+  padding:         2rem 1.75rem 1.5rem;
+  cursor:          pointer;
+  transition:      border-color 0.25s, transform 0.2s, box-shadow 0.25s;
+  display:         flex;
+  flex-direction:  column;
+  align-items:     center;
+  gap:             0.75rem;
+  text-align:      center;
 }
 .accent-card::before {
   content: '';
@@ -101,13 +100,6 @@
 }
 .accent-card.selected::before { opacity: 1; }
 
-/* Flag */
-.accent-flag {
-  font-size: 3.5rem;
-  line-height: 1;
-  margin-bottom: 0.25rem;
-}
-
 /* Selected tick */
 .accent-tick {
   position: absolute;
@@ -125,16 +117,25 @@
   opacity: 0;
   transform: scale(0.5);
   transition: opacity 0.2s, transform 0.2s;
+  pointer-events: none;  /* never intercept clicks */
 }
 .accent-card.selected .accent-tick {
   opacity: 1;
   transform: scale(1);
 }
 
+/* Flag */
+.accent-flag {
+  font-size: 3.5rem;
+  line-height: 1;
+  pointer-events: none;
+}
+
 .accent-name {
   font-size: 1.3rem;
   font-weight: 700;
   color: #fff;
+  pointer-events: none;
 }
 .accent-country {
   font-size: 0.78rem;
@@ -142,11 +143,13 @@
   letter-spacing: 0.1em;
   color: rgba(255,255,255,0.35);
   margin-top: -0.3rem;
+  pointer-events: none;
 }
 .accent-desc {
   font-size: 0.85rem;
   color: rgba(255,255,255,0.55);
   line-height: 1.5;
+  pointer-events: none;
 }
 
 /* Traits */
@@ -156,6 +159,7 @@
   gap: 0.4rem;
   justify-content: center;
   margin-top: 0.25rem;
+  pointer-events: none;
 }
 .trait-pill {
   font-size: 0.72rem;
@@ -166,9 +170,11 @@
   color: rgba(255,255,255,0.5);
 }
 
-/* Preview button */
+/* Preview button — sits ABOVE card content in z-order */
 .preview-btn {
-  margin-top: 0.5rem;
+  position: relative;
+  z-index: 2;
+  margin-top: 0.25rem;
   padding: 0.5rem 1.1rem;
   border-radius: 99px;
   border: 1px solid rgba(168,85,247,0.4);
@@ -183,13 +189,12 @@
   gap: 0.4rem;
   transition: background 0.2s, border-color 0.2s;
 }
-.preview-btn:hover:not(:disabled) {
+.preview-btn * {
+  pointer-events: none;   /* SVG/spans inside button don't intercept events */
+}
+.preview-btn:hover {
   background: rgba(168,85,247,0.2);
   border-color: rgba(168,85,247,0.6);
-}
-.preview-btn:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
 }
 .preview-btn.playing {
   background: rgba(168,85,247,0.25);

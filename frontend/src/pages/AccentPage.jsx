@@ -1,22 +1,17 @@
 // ============================================================
 // frontend/src/pages/AccentPage.jsx
 // LinguaVoice — Step 4: Accent Selection
-//
-// Flow:
-//   Two accent cards (American / British)
-//   → Preview Voice button streams TTS audio from Flask
-//   → Confirm button saves to Firestore via backend
-//   → Redirect to /dashboard
 // ============================================================
-import { useState, useRef, useEffect } from "react";
-import { useNavigate }                 from "react-router-dom";
-import { useAuth }                     from "../contexts/AuthContext";
+import { useState, useEffect, useRef } from "react";
+import { useNavigate }         from "react-router-dom";
+import { useAuth }             from "../contexts/AuthContext";
 import "./accent.css";
 
 const ACCENTS = [
   {
     id:      "american",
     flag:    "🇺🇸",
+    label:   "US",
     name:    "American English",
     country: "United States",
     desc:    "Clear, confident, and globally recognised. Widely used in business, tech, and entertainment worldwide.",
@@ -25,6 +20,7 @@ const ACCENTS = [
   {
     id:      "british",
     flag:    "🇬🇧",
+    label:   "GB",
     name:    "British English",
     country: "United Kingdom",
     desc:    "Crisp, precise, and widely respected. The accent of Oxford, the BBC, and international academia.",
@@ -32,7 +28,6 @@ const ACCENTS = [
   },
 ];
 
-// Animated wave icon shown while audio plays
 function WaveIcon() {
   return (
     <div className="wave-icon">
@@ -41,7 +36,6 @@ function WaveIcon() {
   );
 }
 
-// Speaker icon
 const SpeakerIcon = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
     stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
@@ -55,77 +49,81 @@ export default function AccentPage() {
   const { currentUser, userDoc } = useAuth();
   const navigate = useNavigate();
 
-  const [selected,   setSelected]   = useState(null);
-  const [playing,    setPlaying]    = useState(null); // 'american' | 'british' | null
-  const [saving,     setSaving]     = useState(false);
-  const [errMsg,     setErrMsg]     = useState("");
+  const [selected,         setSelected]         = useState(null);
+  const [previewingAccent, setPreviewingAccent] = useState(null);
+  const [saving,           setSaving]           = useState(false);
+  const [errMsg,           setErrMsg]           = useState("");
 
-  const audioRef = useRef(null);
+  // Pre-fetched ArrayBuffers keyed by accent id (loaded silently on mount)
+  const preloadCache = useRef({});   // { american: ArrayBuffer, british: ArrayBuffer }
 
   // Pre-select from Firestore if already chosen
   useEffect(() => {
-    if (userDoc?.preferred_accent) {
-      setSelected(userDoc.preferred_accent);
-    }
+    if (userDoc?.preferred_accent) setSelected(userDoc.preferred_accent);
   }, [userDoc]);
 
-  // Cleanup audio on unmount
+  // ─── Silently preload both audio buffers on mount ────────────
   useEffect(() => {
-    return () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        URL.revokeObjectURL(audioRef.current.src);
+    if (!currentUser) return;
+    ['american', 'british'].forEach(async (accent) => {
+      try {
+        const token = await currentUser.getIdToken();
+        const res   = await fetch(
+          `${import.meta.env.VITE_API_URL}/api/accent/preview?accent=${accent}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        if (!res.ok) return;
+        preloadCache.current[accent] = await res.arrayBuffer();
+        console.log(`[Preload] ${accent} cached (${Math.round(preloadCache.current[accent].byteLength/1024)}KB)`);
+      } catch (e) {
+        console.warn(`[Preload] ${accent} failed silently:`, e.message);
       }
-    };
-  }, []);
+    });
+  }, [currentUser]);
 
   // ─── Preview TTS audio ───────────────────────────────────────
-  async function handlePreview(accentId) {
-    // Stop any playing audio first
-    if (audioRef.current) {
-      audioRef.current.pause();
-      URL.revokeObjectURL(audioRef.current.src);
-      audioRef.current = null;
-    }
-    if (playing === accentId) {
-      setPlaying(null);
-      return;
-    }
+  const handlePreview = async (e, accent) => {
+    e.preventDefault();
+    e.stopPropagation();
 
-    setPlaying(accentId);
-    setErrMsg("");
+    if (previewingAccent === accent) { setPreviewingAccent(null); return; }
+
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    await audioCtx.resume();
+
+    setPreviewingAccent(accent);
+    setErrMsg('');
 
     try {
-      const token = await currentUser.getIdToken();
-      const res   = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/accent/preview?accent=${accentId}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      if (!res.ok) {
-        throw new Error("TTS preview unavailable");
+      // Use preloaded buffer (instant) or fallback to live fetch
+      let raw = preloadCache.current[accent];
+      if (raw) {
+        console.log(`[Preview] Cache hit — instant`);
+      } else {
+        console.log(`[Preview] Cache miss — fetching now`);
+        const token = await currentUser.getIdToken();
+        const res   = await fetch(
+          `${import.meta.env.VITE_API_URL}/api/accent/preview?accent=${accent}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        raw = await res.arrayBuffer();
       }
 
-      const blob = await res.blob();
-      const url  = URL.createObjectURL(blob);
-      const audio = new Audio(url);
-      audioRef.current = audio;
+      const audioBuffer = await audioCtx.decodeAudioData(raw.slice(0));
+      const source = audioCtx.createBufferSource();
+      source.buffer = audioBuffer;
+      source.connect(audioCtx.destination);
+      source.onended = () => { setPreviewingAccent(null); audioCtx.close(); };
+      source.start(0);
 
-      audio.onended = () => {
-        setPlaying(null);
-        URL.revokeObjectURL(url);
-      };
-      audio.onerror = () => {
-        setPlaying(null);
-        setErrMsg("Could not play audio preview. Is the Flask AI server running?");
-      };
-
-      await audio.play();
     } catch (err) {
-      setPlaying(null);
-      setErrMsg(err.message || "Preview failed. Is the Flask AI server running on port 5000?");
+      console.error('[Preview] failed:', err);
+      setPreviewingAccent(null);
+      audioCtx.close();
+      setErrMsg('Preview failed — is the Flask AI server running on port 5000?');
     }
-  }
+  };
 
   // ─── Save selection and redirect ─────────────────────────────
   async function handleConfirm() {
@@ -177,14 +175,9 @@ export default function AccentPage() {
               id={`accent-card-${a.id}`}
               className={`accent-card${selected === a.id ? " selected" : ""}`}
               onClick={() => setSelected(a.id)}
-              role="button"
-              tabIndex={0}
-              onKeyDown={e => e.key === "Enter" && setSelected(a.id)}
             >
-              {/* Tick badge */}
               <div className="accent-tick">✓</div>
-
-              <div className="accent-flag">{a.flag}</div>
+              <div className="accent-flag">{a.label}</div>
               <div className="accent-name">{a.name}</div>
               <div className="accent-country">{a.country}</div>
               <div className="accent-desc">{a.desc}</div>
@@ -195,19 +188,17 @@ export default function AccentPage() {
                 ))}
               </div>
 
-              {/* Preview button */}
               <button
                 id={`preview-${a.id}`}
-                className={`preview-btn${playing === a.id ? " playing" : ""}`}
-                onClick={e => { e.stopPropagation(); handlePreview(a.id); }}
-                disabled={playing !== null && playing !== a.id}
+                type="button"
+                className={`preview-btn${previewingAccent === a.id ? " playing" : ""}`}
+                onClick={(e) => { e.stopPropagation(); handlePreview(e, a.id); }}
                 title="Preview this accent's voice"
               >
-                {playing === a.id ? (
-                  <><WaveIcon /> Stop preview</>
-                ) : (
-                  <><SpeakerIcon /> Preview voice</>
-                )}
+                {previewingAccent === a.id
+                  ? <><WaveIcon /> Playing...</>
+                  : <><SpeakerIcon /> Preview voice</>
+                }
               </button>
             </div>
           ))}
