@@ -94,6 +94,12 @@ export function AuthProvider({ children }) {
     return sendPasswordResetEmail(auth, email);
   }
 
+  async function refreshUserDoc() {
+    if (!currentUser) return;
+    const doc = await ensureUserDoc(currentUser);
+    setUserDoc(doc);
+  }
+
   const value = {
     currentUser,
     userDoc,
@@ -103,6 +109,7 @@ export function AuthProvider({ children }) {
     loginWithGoogle,
     logout,
     resetPassword,
+    refreshUserDoc,
   };
 
   // Don't render children until Firebase has resolved auth state (prevents flash)

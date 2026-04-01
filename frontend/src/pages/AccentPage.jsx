@@ -46,7 +46,7 @@ const SpeakerIcon = () => (
 );
 
 export default function AccentPage() {
-  const { currentUser, userDoc } = useAuth();
+  const { currentUser, userDoc, refreshUserDoc } = useAuth();
   const navigate = useNavigate();
 
   const [selected,         setSelected]         = useState(null);
@@ -150,6 +150,7 @@ export default function AccentPage() {
         throw new Error(err.error || "Failed to save preference");
       }
 
+      await refreshUserDoc();          // update context before navigating
       navigate("/dashboard", { replace: true });
     } catch (err) {
       setErrMsg(err.message);

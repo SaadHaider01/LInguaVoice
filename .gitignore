@@ -44,3 +44,11 @@ desktop.ini
 *serviceAccountKey*.json
 *firebase-adminsdk*.json
 linguavoice-*-firebase-adminsdk-*.json
+
+# Kokoro TTS model files (large binaries — download locally via download_kokoro_models.py)
+ai_server/*.onnx
+ai_server/*.bin
+ai_server/*.npz
+ai_server/test.wav
+ai_server/test_output.wav
+nul
