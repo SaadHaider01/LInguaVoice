@@ -1,0 +1,267 @@
+/* ============================================================
+   frontend/src/pages/lesson.css
+   ============================================================ */
+   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+   .lesson-page {
+     min-height: 100vh;
+     display: flex;
+     flex-direction: column;
+     background: linear-gradient(135deg, #09090e 0%, #17112c 55%, #0d0d1a 100%);
+     font-family: 'Inter', sans-serif;
+     color: #fff;
+     overflow: hidden;
+     position: relative;
+   }
+   
+   /* Header */
+   .lesson-header {
+     display: flex;
+     flex-direction: column;
+     padding: 1rem 1.5rem;
+     background: rgba(255,255,255,0.03);
+     border-bottom: 1px solid rgba(255,255,255,0.05);
+     z-index: 10;
+   }
+   .header-top {
+     display: flex;
+     justify-content: space-between;
+     align-items: center;
+     margin-bottom: 0.75rem;
+   }
+   .lesson-step-indicator {
+     font-size: 0.85rem;
+     font-weight: 600;
+     color: #c4b5fd;
+     text-transform: uppercase;
+     letter-spacing: 0.05em;
+   }
+   .lesson-close-btn {
+     background: none;
+     border: none;
+     color: rgba(255,255,255,0.4);
+     font-size: 1.5rem;
+     cursor: pointer;
+     transition: color 0.2s;
+   }
+   .lesson-close-btn:hover { color: #fff; }
+   
+   /* Progress bar */
+   .lesson-progress-wrap {
+     height: 4px;
+     background: rgba(255,255,255,0.1);
+     border-radius: 4px;
+     overflow: hidden;
+   }
+   .lesson-progress-bar {
+     height: 100%;
+     background: #a855f7;
+     transition: width 0.4s ease-in-out;
+   }
+   
+   /* Main View Area */
+   .lesson-main {
+     flex: 1;
+     display: flex;
+     position: relative;
+     overflow-y: auto;
+   }
+   
+   .lesson-content {
+     width: 100%;
+     max-width: 800px;
+     margin: 0 auto;
+     padding: 2rem 1.5rem 8rem; /* Bottom padding for the controls */
+     display: flex;
+     flex-direction: column;
+     gap: 2rem;
+   }
+   
+   /* Teacher Message */
+   .teacher-box {
+     display: flex;
+     gap: 1rem;
+     align-items: flex-start;
+   }
+   .teacher-avatar {
+     flex-shrink: 0;
+     width: 48px;
+     height: 48px;
+     background: linear-gradient(135deg, #7c3aed, #c084fc);
+     border-radius: 50%;
+     display: flex;
+     align-items: center;
+     justify-content: center;
+     font-weight: 700;
+     font-size: 1.2rem;
+     box-shadow: 0 4px 15px rgba(124,58,237,0.4);
+   }
+   .teacher-bubble {
+     background: rgba(255,255,255,0.08);
+     backdrop-filter: blur(10px);
+     padding: 1.2rem;
+     border-radius: 0 16px 16px 16px;
+     font-size: 1.1rem;
+     line-height: 1.5;
+     border: 1px solid rgba(255,255,255,0.1);
+   }
+   
+   /* Student Message */
+   .student-box {
+     display: flex;
+     flex-direction: column;
+     gap: 0.5rem;
+     align-items: flex-end;
+   }
+   .student-bubble {
+     background: rgba(168,85,247,0.15);
+     backdrop-filter: blur(10px);
+     padding: 1.2rem;
+     border-radius: 16px 0 16px 16px;
+     font-size: 1.1rem;
+     line-height: 1.5;
+     border: 1px solid rgba(168,85,247,0.3);
+     max-width: 85%;
+   }
+   .ai-feedback {
+     background: rgba(0,0,0,0.3);
+     padding: 0.75rem 1rem;
+     border-radius: 12px;
+     font-size: 0.9rem;
+     color: rgba(255,255,255,0.7);
+     max-width: 85%;
+   }
+   .feedback-line strong {
+     color: #fff;
+   }
+   .feedback-praise strong { color: #34d399; }
+   .feedback-correction strong { color: #f87171; }
+   
+   /* Thinking State */
+   .thinking-state {
+     display: flex;
+     align-items: center;
+     gap: 0.75rem;
+     font-size: 0.95rem;
+     color: rgba(255,255,255,0.6);
+     animation: pulse 1.5s infinite;
+   }
+   @keyframes pulse {
+     0%, 100% { opacity: 0.6; }
+     50% { opacity: 1; }
+   }
+   
+   /* Controls Wrapper (Bottom Fixed) */
+   .lesson-controls {
+     position: absolute;
+     bottom: 0;
+     left: 0;
+     right: 0;
+     background: linear-gradient(to top, rgba(9,9,14,1) 40%, transparent);
+     padding: 2rem 0;
+     display: flex;
+     flex-direction: column;
+     align-items: center;
+     gap: 1rem;
+     z-index: 20;
+   }
+   
+   .record-btn {
+     width: 80px;
+     height: 80px;
+     border-radius: 50%;
+     border: none;
+     background: rgba(255,255,255,0.1);
+     color: #fff;
+     font-size: 2rem;
+     display: flex;
+     align-items: center;
+     justify-content: center;
+     cursor: pointer;
+     transition: all 0.2s;
+     box-shadow: 0 0 20px rgba(0,0,0,0.5);
+   }
+   .record-btn:hover:not(:disabled) {
+     background: rgba(255,255,255,0.2);
+     transform: scale(1.05);
+   }
+   .record-btn:disabled {
+     opacity: 0.3;
+     cursor: not-allowed;
+   }
+   .record-btn.recording {
+     background: #ef4444;
+     animation: recordPulse 1.5s infinite;
+   }
+   @keyframes recordPulse {
+     0% { box-shadow: 0 0 0 0 rgba(239,68,68,0.7); }
+     70% { box-shadow: 0 0 0 20px rgba(239,68,68,0); }
+     100% { box-shadow: 0 0 0 0 rgba(239,68,68,0); }
+   }
+   
+   /* Completion View */
+   .completion-view {
+     text-align: center;
+     padding: 2rem;
+   }
+   .score-circle {
+     width: 150px;
+     height: 150px;
+     border-radius: 50%;
+     border: 8px solid #a855f7;
+     display: flex;
+     flex-direction: column;
+     align-items: center;
+     justify-content: center;
+     margin: 0 auto 2rem;
+     background: rgba(168,85,247,0.1);
+   }
+   .score-value {
+     font-size: 3rem;
+     font-weight: 800;
+   }
+   .score-label {
+     font-size: 0.85rem;
+     text-transform: uppercase;
+     letter-spacing: 0.1em;
+     opacity: 0.7;
+   }
+   
+   .feedback-lists {
+     display: grid;
+     grid-template-columns: 1fr 1fr;
+     gap: 1.5rem;
+     text-align: left;
+     background: rgba(255,255,255,0.05);
+     padding: 1.5rem;
+     border-radius: 12px;
+     margin-bottom: 2rem;
+   }
+   .feedback-lists h4 { margin-top: 0; margin-bottom: 0.5rem; color: #a855f7; }
+   .feedback-lists ul { margin: 0; padding-left: 1.2rem; }
+   .feedback-lists li { margin-bottom: 0.3rem; opacity: 0.8; font-size: 0.95rem; }
+   
+   .completion-actions {
+     display: flex;
+     gap: 1rem;
+     justify-content: center;
+   }
+   .btn-primary {
+     background: #a855f7;
+     color: #fff;
+     border: none;
+     padding: 0.75rem 2rem;
+     border-radius: 8px;
+     font-size: 1rem;
+     font-weight: 600;
+     cursor: pointer;
+   }
+   .btn-secondary {
+     background: rgba(255,255,255,0.1);
+     color: #fff;
+     border: none;
+     padding: 0.75rem 2rem;
+     border-radius: 8px;
+     font-size: 1rem;
+     cursor: pointer;
+   }

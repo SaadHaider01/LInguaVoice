@@ -28,6 +28,9 @@ export default function DashboardPage() {
   const accent       = userDoc?.preferred_accent  || null;
   const plan         = userDoc?.subscription_plan || "free";
   const streakDays   = userDoc?.streak_days       || 0;
+  
+  const completedLessons = userDoc?.progress?.lessons_completed || [];
+
 
   async function handleLogout() {
     try {
@@ -72,14 +75,33 @@ export default function DashboardPage() {
 
         {/* Module cards */}
         <div className="module-grid">
-          {MODULES.map((mod) => (
-            <div key={mod.id} className="module-card">
-              <span className="module-card-icon">{mod.icon}</span>
-              <h3>{mod.title}</h3>
-              <p>{mod.desc}</p>
-              <span className="badge-coming">Coming in Step 5</span>
-            </div>
-          ))}
+          {MODULES.map((mod, i) => {
+            // Is it module 1? Or is the previous module in completedLessons?
+            const isUnlocked = i === 0 || completedLessons.includes(MODULES[i - 1].id);
+            const isCompleted = completedLessons.includes(mod.id);
+            
+            return (
+              <div 
+                key={mod.id} 
+                className={`module-card ${!isUnlocked ? "locked" : ""}`}
+                onClick={() => {
+                  if (isUnlocked) navigate(`/lesson/${mod.id}`);
+                }}
+                style={{ cursor: isUnlocked ? "pointer" : "not-allowed", opacity: isUnlocked ? 1 : 0.6 }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span className="module-card-icon">{mod.icon}</span>
+                  {isCompleted && <span style={{ color: '#34d399', fontWeight: 'bold' }}>✓ Done</span>}
+                  {!isUnlocked && <span>🔒 Locked</span>}
+                </div>
+                <h3>{mod.title}</h3>
+                <p>{mod.desc}</p>
+                <span className={isUnlocked ? "badge-start" : "badge-locked"} style={{ display: "inline-block", marginTop: "1rem", color: isUnlocked ? "#a855f7" : "#888", fontWeight: "bold" }}>
+                  {isUnlocked ? (isCompleted ? "Replay Lesson →" : "Start Lesson →") : "Complete previous first"}
+                </span>
+              </div>
+            );
+          })}
         </div>
       </main>
     </div>

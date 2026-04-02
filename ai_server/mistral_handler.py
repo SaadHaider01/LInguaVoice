@@ -1,10 +1,13 @@
 import os
-
-GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
+from dotenv import load_dotenv
 
 def generate_response(prompt: str) -> str:
     try:
         from groq import Groq
+        
+        load_dotenv()
+        GROQ_API_KEY = os.environ.get('GROQ_API_KEY')
+        print(f"[Groq] Key loaded: {str(GROQ_API_KEY)[:8]}...")
 
         client = Groq(api_key=GROQ_API_KEY)
 

@@ -166,6 +166,9 @@ export default function AccentPage() {
         <div className="accent-header">
           <h1>Choose Your Accent</h1>
           <p>Your AI coach will speak and teach in your selected accent throughout every lesson.</p>
+          <p style={{ marginTop: "0.5rem", fontSize: "0.9rem", color: "rgba(255,255,255,0.6)", fontStyle: "italic" }}>
+            Note: You can change your accent later from Profile Settings.
+          </p>
         </div>
 
         {/* Cards */}

@@ -9,9 +9,8 @@ import ResetPage       from "./pages/ResetPage";
 import DashboardPage   from "./pages/DashboardPage";
 import DiagnosticPage  from "./pages/DiagnosticPage";
 import AccentPage      from "./pages/AccentPage";
-function LessonStub() {
-  return <Stub title="Lesson Player" step={5} next="/dashboard" />;
-}
+import LessonPage      from "./pages/LessonPage";
+
 function NotFound() {
   return (
     <div style={styles.center}>
@@ -57,8 +56,8 @@ export default function App() {
           <Route path="/dashboard" element={
             <ProtectedRoute><DashboardPage /></ProtectedRoute>
           } />
-          <Route path="/lesson/:lessonId" element={
-            <ProtectedRoute><LessonStub /></ProtectedRoute>
+          <Route path="/lesson/:moduleId/:lessonId?" element={
+            <ProtectedRoute><LessonPage /></ProtectedRoute>
           } />
 
           {/* Catch-all */}

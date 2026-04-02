@@ -38,7 +38,7 @@ if (!admin.apps.length) {
 }
 
 const authRoutes       = require("./routes/auth");
-const lessonRoutes     = require("./routes/lessons");
+const lessonRoute      = require("./routes/lesson");
 const progressRoutes   = require("./routes/progress");
 const paymentRoutes    = require("./routes/payments");
 const diagnosticRoutes = require("./routes/diagnostic");
@@ -54,6 +54,7 @@ app.use(express.urlencoded({ extended: true }));
 // Allow requests from Vite dev server and future Vercel domain
 const allowedOrigins = [
   "http://localhost:5173",
+  "http://localhost:5176",
   "http://localhost:3000",
   process.env.FRONTEND_URL,                 // set this in Vercel env
 ].filter(Boolean);
@@ -81,7 +82,7 @@ app.get("/health", (_req, res) => {
 app.use("/api/auth",       authRoutes);
 app.use("/api/diagnostic", diagnosticRoutes);
 app.use("/api/accent",     accentRoutes);
-app.use("/api/lessons",    lessonRoutes);
+app.use("/api/lesson",     lessonRoute);
 app.use("/api/progress",   progressRoutes);
 app.use("/api/payments",   paymentRoutes);
 
