@@ -14,8 +14,10 @@ os.environ["PATH"] = (
 import whisper.audio
 whisper.audio.FFMPEG = r"C:\Windows\System32\ffmpeg.exe"
 
+from typing import Tuple
+
 def transcribe_audio(audio_bytes: bytes,
-                     mime_type: str = 'audio/webm') -> str:
+                     mime_type: str = 'audio/webm') -> Tuple[str, int]:
 
     ext_map = {
         'audio/webm': '.webm',
@@ -52,9 +54,17 @@ def transcribe_audio(audio_bytes: bytes,
         print(f'[Whisper] Transcribing...')
 
         result = model.transcribe(tmp_path, language='en')
-        transcript = result['text'].strip()
+        transcript = result.get('text', '').strip()
+        segments = result.get('segments', [])
+        
+        if segments:
+            avg_logprob = sum(seg.get('avg_logprob', -1.0) for seg in segments) / len(segments)
+        else:
+            avg_logprob = -1.0
+            
+        score = max(0, min(100, int((avg_logprob + 1.0) * 100)))
 
-        print(f'[Whisper] Transcript: {transcript[:100]}')
+        print(f'[Whisper] Transcript: {transcript[:100]} | Score: {score}')
 
         # Cleanup model from memory
         del model
@@ -63,7 +73,7 @@ def transcribe_audio(audio_bytes: bytes,
         ctypes.windll.kernel32.SetProcessWorkingSetSize(-1, -1, -1)
 
         print(f'[Whisper] Done.')
-        return transcript
+        return transcript, score
 
     except Exception as e:
         print(f'[Whisper] ERROR: {type(e).__name__}: {e}')

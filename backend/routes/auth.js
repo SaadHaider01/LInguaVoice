@@ -64,6 +64,10 @@ router.post("/create-user", async (req, res) => {
         detected_native_accent: null,
         completed_date:         null,
       },
+      xp: 0,
+      app_level: 1,
+      badges: [],
+      onboarding_complete: false,
     };
 
     await userRef.set(userData);

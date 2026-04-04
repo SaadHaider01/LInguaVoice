@@ -1,0 +1,161 @@
+/* Gamification UI Styles */
+
+/* XP Toast */
+.xp-toast-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 10000;
+  pointer-events: none;
+}
+
+.xp-toast {
+  background: rgba(22, 22, 34, 0.95);
+  border: 1px solid rgba(255, 191, 0, 0.4);
+  backdrop-filter: blur(8px);
+  padding: 12px 20px;
+  border-radius: 12px;
+  color: #ffbf00;
+  font-weight: 700;
+  font-size: 1.1rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transform: translateX(150%);
+  animation: slideInRight 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.28) forwards;
+  pointer-events: auto;
+}
+
+@keyframes slideInRight {
+  from { transform: translateX(150%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+/* Level Up Modal */
+.level-up-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10001;
+  backdrop-filter: blur(4px);
+  animation: fadeIn 0.3s ease-out;
+}
+
+.level-up-card {
+  background: linear-gradient(145deg, #1e1e2d, #14141e);
+  border: 1px solid rgba(124, 58, 237, 0.3);
+  border-radius: 24px;
+  padding: 40px;
+  max-width: 400px;
+  width: 90%;
+  text-align: center;
+  position: relative;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+  animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.level-up-card h1 {
+  font-size: 2.5rem;
+  margin-bottom: 20px;
+  background: linear-gradient(90deg, #ffbf00, #ff8c00);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-family: 'Outfit', sans-serif;
+}
+
+.level-counter {
+  font-size: 5rem;
+  font-weight: 800;
+  color: #fff;
+  margin: 20px 0;
+  text-shadow: 0 0 20px rgba(124, 58, 237, 0.6);
+}
+
+.level-name {
+  color: #a78bfa;
+  font-size: 1.2rem;
+  font-weight: 500;
+  margin-bottom: 30px;
+}
+
+.keep-learning-btn {
+  background: linear-gradient(90deg, #7c3aed, #a855f7);
+  color: #fff;
+  border: none;
+  padding: 14px 32px;
+  border-radius: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.keep-learning-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(124, 58, 237, 0.4);
+}
+
+/* Badge Notification */
+.badge-notification-container {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  padding: 20px;
+  z-index: 10002;
+  pointer-events: none;
+}
+
+.badge-notification {
+  background: #1e1e2d;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 16px 24px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  transform: translateY(200%);
+  animation: slideUp 0.5s cubic-bezier(0.18, 0.89, 0.32, 1.28) forwards;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.badge-emoji {
+  font-size: 2.5rem;
+}
+
+.badge-info h4 { margin: 0; color: #fff; font-size: 1.1rem; }
+.badge-info p { margin: 4px 0; color: #9ca3af; font-size: 0.9rem; }
+.unlocked-label { color: #10b981; font-weight: 600; font-size: 0.8rem; text-transform: uppercase; }
+
+/* Animations */
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes popIn { from { opacity: 0; transform: scale(0.8); } to { opacity: 1; transform: scale(1); } }
+@keyframes slideUp { from { transform: translateY(200%); } to { transform: translateY(0); } }
+
+/* Confetti */
+.confetti {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: #ffbf00;
+  z-index: -1;
+  animation: flyOut 1s ease-out forwards;
+}
+
+@keyframes flyOut {
+  to {
+    transform: translate(var(--dx), var(--dy)) rotate(var(--dr));
+    opacity: 0;
+  }
+}

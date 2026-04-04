@@ -64,7 +64,7 @@ def transcribe():
         print(f'[Transcribe] Received {len(audio_bytes)} bytes, mime: {mime_type}')
         
         from whisper_handler import transcribe_audio
-        transcript = transcribe_audio(audio_bytes, mime_type)
+        transcript, score = transcribe_audio(audio_bytes, mime_type)
         
         # Force memory release before Mistral loads
         import gc
@@ -75,6 +75,7 @@ def transcribe():
         return jsonify({
             'status': 'success',
             'transcript': transcript,
+            'pronunciation_score': score,
             'confidence': 0.95
         })
         
@@ -144,6 +145,37 @@ def synthesize():
         print(f"[TTS] Error: {e}")
         return jsonify({"error": f"TTS failed: {str(e)}"}), 500
 
+
+# ─── POST /pronounce ─────────────────────────────────────────────────────────
+@app.route("/pronounce", methods=["POST"])
+def pronounce():
+    data = request.get_json(silent=True)
+    if not data:
+        return jsonify({"error": "Request body must be JSON"}), 400
+
+    word   = data.get("word", "").strip()
+    accent = data.get("accent", "american")
+
+    if not word:
+        return jsonify({"error": "Provide 'word' field"}), 400
+
+    try:
+        import eng_to_ipa
+        import base64
+        
+        phonetic = eng_to_ipa.convert(word)
+        
+        wav_normal = synthesize_speech(word, accent, speed=1.0)
+        wav_slow = synthesize_speech(word, accent, speed=0.5)
+        
+        return jsonify({
+            "normal": base64.b64encode(wav_normal).decode('utf-8'),
+            "slow": base64.b64encode(wav_slow).decode('utf-8'),
+            "phonetic": phonetic
+        })
+    except Exception as e:
+        print(f"[Pronounce] Error: {e}")
+        return jsonify({"error": f"Pronounce failed: {str(e)}"}), 500
 
 # ─── Main ────────────────────────────────────────────────────────────────────
 if __name__ == "__main__":

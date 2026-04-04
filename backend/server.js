@@ -43,6 +43,9 @@ const progressRoutes   = require("./routes/progress");
 const paymentRoutes    = require("./routes/payments");
 const diagnosticRoutes = require("./routes/diagnostic");
 const accentRoutes     = require("./routes/accent");
+const vocabRoutes      = require("./routes/vocab");
+const xpRoutes         = require("./routes/xp");
+const onboardingRoutes = require("./routes/onboarding");
 
 const app  = express();
 const PORT = process.env.PORT || 3001;
@@ -85,6 +88,9 @@ app.use("/api/accent",     accentRoutes);
 app.use("/api/lesson",     lessonRoute);
 app.use("/api/progress",   progressRoutes);
 app.use("/api/payments",   paymentRoutes);
+app.use("/api/vocab",      vocabRoutes);
+app.use("/api/xp",         xpRoutes);
+app.use("/api/onboarding", onboardingRoutes);
 
 // ─── 404 handler ─────────────────────────────────────────────────────────────
 app.use((_req, res) => {

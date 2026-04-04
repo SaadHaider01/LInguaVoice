@@ -8,6 +8,7 @@ const admin    = require("firebase-admin");
 const multer   = require("multer");
 const FormData = require("form-data");
 const axios    = require("axios");
+const awardXP = require("../helpers/awardXP");
 const ffmpeg   = require("fluent-ffmpeg");
 const ffmpegPath = require("@ffmpeg-installer/ffmpeg").path;
 const fs       = require("fs");
@@ -72,7 +73,8 @@ function parseLessonJSON(raw) {
     errors_detected: [],
     praise: "",
     correction: null,
-    student_score: 50
+    student_score: 50,
+    anchor: { type: "none", content: "", translation: "" }
   };
 }
 
@@ -142,6 +144,7 @@ Rules:
 3. Keep response under 50 words.
 4. Use simple vocabulary for ${cefrLevel} level.
 5. Never break teacher character.
+6. Provide a Visual Anchor relating to what is being taught (e.g., if teaching 'apple', type='word', content='apple', translation='a red fruit'). Set type to 'none' if no direct concept is being introduced.
 
 Return ONLY this JSON:
 {
@@ -150,7 +153,13 @@ Return ONLY this JSON:
   "errors_detected": [],
   "praise": "",
   "correction": null,
-  "student_score": 100
+  "student_score": 100,
+  "focus_word": "single most important word here",
+  "anchor": {
+    "type": "word | letter | sentence | none",
+    "content": "<the text>",
+    "translation": "<simple definition or example>"
+  }
 }`;
 
   let aiResJson = {};
@@ -212,6 +221,7 @@ router.post("/turn", upload.single("audio"), async (req, res) => {
   if (!sessionId) return res.status(400).json({ error: "sessionId required" });
 
   let transcript = "";
+  let pronunciation_score = 0;
   if (req.file && req.file.buffer.length > 0) {
     try {
       const wavBuffer = await convertWebmToWav(req.file.buffer);
@@ -223,6 +233,7 @@ router.post("/turn", upload.single("audio"), async (req, res) => {
         timeout: 60_000, 
       });
       transcript = transcribeRes.data?.transcript || "";
+      pronunciation_score = transcribeRes.data?.pronunciation_score || 0;
     } catch (err) {
       console.error("[Turn Whisper Error]", err.message);
       return res.status(200).json({ 
@@ -270,6 +281,7 @@ C1 student needs near-native conversation.
 
 Previous errors this session: ${sessionData.errors_history.slice(-5).join(", ")}
 Student's last response: "${transcript}"
+Pronunciation Accuracy Score: ${pronunciation_score}/100
 
 Rules:
 1. Keep response under 50 words
@@ -280,6 +292,8 @@ Rules:
    - Encourage next attempt
 4. End with a question or clear instruction
 5. Never break teacher character
+6. Provide a Visual Anchor relating to what is being taught (e.g., if teaching 'apple', type='word', content='apple', translation='a red fruit'). Set type to 'none' if no direct concept is being introduced.
+7. If Pronunciation Accuracy Score < 70, dedicate your feedback entirely to encouraging phonetic correction.
 
 Return ONLY this JSON:
 {
@@ -288,7 +302,16 @@ Return ONLY this JSON:
   "errors_detected": ["error1", "error2"],
   "praise": "what student did well",
   "correction": "specific correction or null",
-  "student_score": 85
+  "student_score": 85,
+  "focus_word": "single most important word here",
+  "anchor": {
+    "type": "word | letter | sentence | none",
+    "content": "<the text>",
+    "translation": "<simple definition or example>"
+  },
+  "new_vocabulary": [
+    { "word": "example", "definition": "the meaning", "example_sentence": "I ate an apple" }
+  ]
 }`;
 
   let aiResJson = {};
@@ -318,6 +341,7 @@ Return ONLY this JSON:
     ai_response: aiResJson.teacher_response,
     errors_detected: aiResJson.errors_detected || [],
     score: aiResJson.student_score || 50,
+    pronunciation_score: pronunciation_score,
     timestamp: new Date().toISOString()
   };
 
@@ -327,12 +351,76 @@ Return ONLY this JSON:
   }
   sessionData.current_step_index = curStepIdx;
 
+  // Auto-Save New Vocabulary asynchronously to avoid blocking the user loop
+  if (aiResJson.new_vocabulary && Array.isArray(aiResJson.new_vocabulary)) {
+    const db = admin.firestore();
+    const vocabRef = db.collection("users").doc(decoded.uid).collection("vocabulary");
+    
+    // We execute async but don't await blocking
+    Promise.all(aiResJson.new_vocabulary.slice(0, 2).map(async (v) => {
+       if(!v.word) return;
+       const docId = v.word.toLowerCase().replace(/[^a-z0-9]/g, '');
+       if (!docId) return;
+       
+       const docTarget = vocabRef.doc(docId);
+       const doc = await docTarget.get();
+       // Don't overwrite if existing, just let it be. If we wanted to, we could bump review count.
+       if (!doc.exists) {
+          const d = new Date();
+          d.setHours(0,0,0,0);
+          const midnight = d.toISOString();
+          await docTarget.set({
+            word: v.word,
+            definition: v.definition || "No definition",
+            example_sentence: v.example_sentence || "No example",
+            first_seen_date: midnight,
+            last_reviewed_date: midnight,
+            review_count: 0,
+            ease_factor: 2.5,
+            interval: 1,
+            next_review_date: midnight,
+            source_module: sessionData.module_id || "Lesson"
+          });
+       }
+    })).catch(e => console.error("[Auto-Vocab Injection Error]", e));
+  }
+
   if (curStepIdx >= 4 && aiResJson.advance_step) { // completed
     sessionData.completed = true;
     sessionData.completed_at = admin.firestore.FieldValue.serverTimestamp();
     const sumScores = sessionData.turns.reduce((acc, t) => acc + (t.score || 50), 0);
     sessionData.final_score = Math.round(sumScores / Math.max(sessionData.turns.length, 1));
     
+    // Recap Trigger 
+    const turnsText = sessionData.turns.map(t => `Student: ${t.user_transcript}\nTeacher: ${t.ai_response}`).join("\n\n");
+    const pronScores = sessionData.turns.map(t => t.pronunciation_score).filter(s => s !== undefined);
+    const recapPrompt = `You are an encouraging English tutor. The student just completed a lesson. Here is the full transcript of the lesson:\n${turnsText}\n\nTheir pronunciation scores per turn were: ${JSON.stringify(pronScores)}\n\nGenerate a lesson recap in JSON with these fields:\n- summary: a 2-sentence warm summary of what was covered\n- words_practiced: array of up to 6 words the student used or was taught (each with 'word' and 'definition')\n- top_strength: one specific thing the student did well (1 sentence)\n- focus_for_next: one specific thing to practice before the next lesson (1 sentence)\n- overall_grade: a letter grade A/B/C/D based on aggregate score\n\nReturn only valid JSON.`;
+    
+    try {
+      const recapRes = await axios.post(`${FLASK_URL}/generate_response`, {
+        system_prompt: "You output restricted JSON.",
+        user_message: recapPrompt,
+      }, { timeout: 60000 });
+      
+      let rText = recapRes.data.response;
+      let startIdx = rText.indexOf("{");
+      let endIdx = rText.lastIndexOf("}");
+      if (startIdx !== -1 && endIdx !== -1) {
+         sessionData.recap = JSON.parse(rText.substring(startIdx, endIdx + 1));
+      } else {
+         throw new Error("No JSON boundaries found");
+      }
+    } catch (e) {
+      console.error("[Recap Gen Error]", e.message);
+      sessionData.recap = {
+        summary: "Fantastic work completing the lesson! We covered a lot of great conversational ground today.",
+        words_practiced: [],
+        top_strength: "Great effort and communication flow.",
+        focus_for_next: "Keep practicing pronunciation and timing.",
+        overall_grade: "B"
+      };
+    }
+
     // Update User Progress
     const userUpdates = {};
     const weekLogs = userData.lessons_completed_this_week || [];
@@ -350,19 +438,73 @@ Return ONLY this JSON:
     userUpdates.streak_days = (userData.streak_days || 0) + 1;
     
     await userRef.update(userUpdates);
+    
+    // ─── Gamification Hook ───
+    const accuracyHistory = prog.accuracy_history || [];
+    const isFirstLesson = accuracyHistory.length === 1;
+    
+    let xpResults = [];
+    
+    // 1. Base Lesson Reward
+    xpResults.push(await awardXP(decoded.uid, "LESSON_COMPLETE"));
+    
+    // 2. First Lesson Bonus
+    if (isFirstLesson) {
+      xpResults.push(await awardXP(decoded.uid, "FIRST_LESSON_BONUS"));
+    }
+    
+    // 3. Pronunciation Bonus
+    if (avgPronunciation >= 90) {
+      xpResults.push(await awardXP(decoded.uid, "PRONUNCIATION_90_100"));
+    } else if (avgPronunciation >= 75) {
+      xpResults.push(await awardXP(decoded.uid, "PRONUNCIATION_75_89"));
+    }
+    
+    // Merge results for the frontend (take the latest state)
+    const finalResult = xpResults[xpResults.length - 1];
+    // Sum up total XP awarded in this session for the toast
+    finalResult.xp_awarded = xpResults.reduce((sum, res) => sum + res.xp_awarded, 0);
+    // Collect all new badges
+    finalResult.new_badges = xpResults.reduce((all, res) => [...all, ...res.new_badges], []);
+    
+    aiResJson.xp_payload = finalResult;
   }
 
   await sessionRef.set(sessionData);
 
   return res.json({
     transcript,
+    pronunciation_score,
     aiResponseJSON: aiResJson,
     audioBase64,
     step_index: curStepIdx,
     completed: sessionData.completed,
-    final_score: sessionData.final_score
+    final_score: sessionData.final_score,
+    recap: sessionData.recap || null
   });
 
+});
+
+// ─── POST /pronounce ────────────────────────────────────────────────────────
+router.post("/pronounce", async (req, res) => {
+  const decoded = await verifyToken(req);
+  if (!decoded) return res.status(401).json({ error: "Unauthorized" });
+
+  const { word } = req.body;
+  
+  const db = admin.firestore();
+  let userSnap = await db.collection("users").doc(decoded.uid).get();
+  const accent = userSnap.exists ? (userSnap.data().preferred_accent || "american") : "american";
+
+  if (!word) return res.status(400).json({ error: "Provide a 'word'" });
+
+  try {
+    const pronRes = await axios.post(`${FLASK_URL}/pronounce`, { word, accent }, { timeout: 30000 });
+    return res.json(pronRes.data);
+  } catch (err) {
+    console.error("[Pronounce Proxy Error]", err.message);
+    return res.status(500).json({ error: err.message });
+  }
 });
 
 module.exports = router;

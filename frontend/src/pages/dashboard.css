@@ -39,7 +39,18 @@
 .nav-actions {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 1.5rem;
+}
+
+.nav-link {
+  color: #c4b5fd;
+  text-decoration: none;
+  font-weight: bold;
+  transition: opacity 0.2s;
+}
+
+.nav-link:hover {
+  opacity: 0.8;
 }
 
 .nav-user {
@@ -88,6 +99,50 @@
   font-size: 1rem;
   color: rgba(255,255,255,0.5);
   margin: 0;
+}
+
+/* Welcome Header + Level Pill */
+.welcome-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.level-pill {
+  background: rgba(124, 58, 237, 0.2);
+  border: 1px solid #7c3aed;
+  color: #c4b5fd;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+/* XP Progress Bar */
+.xp-progress-container {
+  margin-top: 1.5rem;
+  max-width: 500px;
+}
+
+.xp-bar-bg {
+  height: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.xp-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #ffbf00, #ff8c00);
+  transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.xp-label {
+  margin-top: 6px;
+  font-size: 0.85rem;
+  color: #9ca3af;
+  font-weight: 500;
 }
 
 /* ─── Step cards grid (placeholder modules) ───────────────── */

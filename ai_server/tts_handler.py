@@ -24,7 +24,7 @@ def _voice_path(voice_id: str) -> str:
     return os.path.join(VOICES_DIR, f'{voice_id}.bin')
 
 
-def synthesize_speech(text: str, accent: str = 'american') -> bytes:
+def synthesize_speech(text: str, accent: str = 'american', speed: float = 1.0) -> bytes:
     """
     Synthesize text to speech using Kokoro ONNX.
 
@@ -78,7 +78,7 @@ def synthesize_speech(text: str, accent: str = 'american') -> bytes:
     samples, sample_rate = kokoro.create(
         text,
         voice=voice,
-        speed=1.0,
+        speed=speed,
         lang='en-us' if accent == 'american' else 'en-gb',
     )
 

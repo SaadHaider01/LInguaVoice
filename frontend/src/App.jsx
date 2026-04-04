@@ -1,6 +1,8 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
+import { GamificationProvider } from "./contexts/GamificationContext";
 import ProtectedRoute   from "./components/ProtectedRoute";
+import OnboardingGate   from "./components/OnboardingGate";
 
 // ─── Pages ───────────────────────────────────────────────────────────────────
 import SignupPage      from "./pages/SignupPage";
@@ -10,6 +12,10 @@ import DashboardPage   from "./pages/DashboardPage";
 import DiagnosticPage  from "./pages/DiagnosticPage";
 import AccentPage      from "./pages/AccentPage";
 import LessonPage      from "./pages/LessonPage";
+import ProgressPage    from "./pages/ProgressPage";
+import VocabPage       from "./pages/VocabPage";
+import BadgesPage      from "./pages/BadgesPage";
+import OnboardingPage  from "./pages/OnboardingPage";
 
 function NotFound() {
   return (
@@ -38,32 +44,79 @@ function Stub({ title, step, next }) {
 export default function App() {
   return (
     <AuthProvider>
-      <Router>
-        <Routes>
+      <GamificationProvider>
+        <Router>
+          <Routes>
           {/* Public routes */}
           <Route path="/"       element={<Navigate to="/login" replace />} />
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/login"  element={<LoginPage />} />
           <Route path="/reset"  element={<ResetPage />} />
 
+          <Route path="/onboarding" element={
+            <ProtectedRoute>
+              <OnboardingGate>
+                <OnboardingPage />
+              </OnboardingGate>
+            </ProtectedRoute>
+          } />
+
           {/* Protected routes — redirect to /login if not authenticated */}
           <Route path="/diagnostic" element={
-            <ProtectedRoute><DiagnosticPage /></ProtectedRoute>
+            <ProtectedRoute>
+              <OnboardingGate>
+                <DiagnosticPage />
+              </OnboardingGate>
+            </ProtectedRoute>
           } />
           <Route path="/accent" element={
-            <ProtectedRoute><AccentPage /></ProtectedRoute>
+            <ProtectedRoute>
+              <OnboardingGate>
+                <AccentPage />
+              </OnboardingGate>
+            </ProtectedRoute>
           } />
           <Route path="/dashboard" element={
-            <ProtectedRoute><DashboardPage /></ProtectedRoute>
+            <ProtectedRoute>
+              <OnboardingGate>
+                <DashboardPage />
+              </OnboardingGate>
+            </ProtectedRoute>
+          } />
+          <Route path="/progress" element={
+            <ProtectedRoute>
+              <OnboardingGate>
+                <ProgressPage />
+              </OnboardingGate>
+            </ProtectedRoute>
+          } />
+          <Route path="/vocabulary" element={
+            <ProtectedRoute>
+              <OnboardingGate>
+                <VocabPage />
+              </OnboardingGate>
+            </ProtectedRoute>
+          } />
+          <Route path="/badges" element={
+            <ProtectedRoute>
+              <OnboardingGate>
+                <BadgesPage />
+              </OnboardingGate>
+            </ProtectedRoute>
           } />
           <Route path="/lesson/:moduleId/:lessonId?" element={
-            <ProtectedRoute><LessonPage /></ProtectedRoute>
+            <ProtectedRoute>
+              <OnboardingGate>
+                <LessonPage />
+              </OnboardingGate>
+            </ProtectedRoute>
           } />
 
           {/* Catch-all */}
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Router>
+      </GamificationProvider>
     </AuthProvider>
   );
 }

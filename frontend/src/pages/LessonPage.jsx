@@ -10,6 +10,34 @@ import "./lesson.css";
 
 const stepNames = ["Warm Up", "Teaching", "Practice", "Free Talk", "Feedback"];
 
+const PronunciationBadge = ({ score }) => {
+  if (score === null || score === undefined) return null;
+  const [offset, setOffset] = useState(157);
+
+  useEffect(() => {
+    const fillPercent = Math.max(0, Math.min(100, score)) / 100;
+    const targetOffset = 157 - (157 * fillPercent);
+    const t = setTimeout(() => setOffset(targetOffset), 50);
+    return () => clearTimeout(t);
+  }, [score]);
+
+  const colorClass = score < 50 ? 'score-red' : score < 75 ? 'score-amber' : 'score-green';
+  const label = score < 50 ? 'Keep going' : score < 75 ? 'Good' : 'Excellent';
+
+  return (
+    <div className={`pronunciation-badge ${colorClass}`}>
+      <div className="svg-ring-container">
+        <svg className="svg-ring" viewBox="0 0 60 60">
+          <circle cx="30" cy="30" r="25" />
+          <circle className="ring-fill" cx="30" cy="30" r="25" style={{ strokeDashoffset: offset }} />
+        </svg>
+        <div className="ring-score-text">{score}</div>
+      </div>
+      <div className="pronunciation-label">{label}</div>
+    </div>
+  );
+};
+
 export default function LessonPage() {
   const { moduleId, lessonId } = useParams();
   const { currentUser, userDoc, refreshUserDoc } = useAuth();
@@ -22,6 +50,14 @@ export default function LessonPage() {
   const [currentStep, setCurrentStep] = useState(0);
   const [completed, setCompleted] = useState(false);
   const [finalScore, setFinalScore] = useState(0);
+  const [recapData, setRecapData] = useState(null);
+  
+  const [currentAnchor, setCurrentAnchor] = useState({ type: "none", content: "", translation: "" });
+  const [recentScore, setRecentScore] = useState(null);
+  
+  const [guideData, setGuideData] = useState(null);
+  const [isGuideFetching, setIsGuideFetching] = useState(false);
+  const [showRepeatPrompt, setShowRepeatPrompt] = useState(false);
   
   const [conversation, setConversation] = useState([]);
   const [isRecording, setIsRecording] = useState(false);
@@ -102,6 +138,11 @@ export default function LessonPage() {
              role: "teacher", 
              text: data.aiResponseJSON?.teacher_response || "" 
           }]);
+          
+          if (data.aiResponseJSON?.anchor?.type) {
+             setCurrentAnchor(data.aiResponseJSON.anchor);
+          }
+          
           setLoading(false);
           
           if (data.audioBase64) {
@@ -122,6 +163,8 @@ export default function LessonPage() {
 
   // Record functions
   const startRecording = async () => {
+    setGuideData(null);
+    setShowRepeatPrompt(false);
     try {
       initAudioCtx(); // unlock audio for subsequent playback
       
@@ -175,6 +218,23 @@ export default function LessonPage() {
         { role: "teacher", text: data.aiResponseJSON?.teacher_response }
       ]);
       
+      if (data.pronunciation_score !== undefined) {
+         setRecentScore(data.pronunciation_score);
+         setTimeout(() => setRecentScore(null), 4000);
+      }
+      
+      if (data.aiResponseJSON?.anchor?.type) {
+         setCurrentAnchor(data.aiResponseJSON.anchor);
+      }
+      
+      const targetWord = data.aiResponseJSON?.focus_word || data.aiResponseJSON?.anchor?.content;
+      const needsGuide = (data.pronunciation_score !== undefined && data.pronunciation_score < 70) 
+                         || (data.aiResponseJSON?.focus_word);
+      
+      if (needsGuide && targetWord && targetWord !== "none") {
+         fetchPronunciationGuide(targetWord);
+      }
+      
       setCurrentStep(data.step_index);
       setIsProcessing(false);
 
@@ -185,6 +245,8 @@ export default function LessonPage() {
       if (data.completed) {
         setCompleted(true);
         setFinalScore(data.final_score);
+        if (data.recap) setRecapData(data.recap);
+        if (data.xp_payload) window.dispatchEvent(new CustomEvent("gamification_pushed", { detail: data.xp_payload }));
         refreshUserDoc(); // update dashboard stats
       }
 
@@ -195,41 +257,101 @@ export default function LessonPage() {
     }
   };
 
+  const fetchPronunciationGuide = async (word) => {
+    try {
+      setIsGuideFetching(true);
+      const token = await currentUser.getIdToken();
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/lesson/pronounce`, {
+        method: "POST",
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ word })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setGuideData({
+          word,
+          phonetic: data.phonetic,
+          normalAudio: data.normal,
+          slowAudio: data.slow
+        });
+      }
+    } catch (err) {
+      console.error("[Pronounce Guide Error]", err);
+    } finally {
+      setIsGuideFetching(false);
+    }
+  };
+
+  const playGuideAudio = (base64Audio, isSlow) => {
+    if (isPlaying) return;
+    playAudio(base64Audio);
+    if (isSlow) {
+      setTimeout(() => setShowRepeatPrompt(true), 2000);
+    } else {
+      setShowRepeatPrompt(false);
+    }
+  };
+
   if (loading) return <div className="lesson-page"><div className="lesson-main"><div className="thinking-state" style={{margin:'auto'}}>Loading lesson...</div></div></div>;
   if (error) return <div className="lesson-page"><div className="lesson-main"><div style={{margin:'auto', color:'#f87171'}}>{error}</div></div></div>;
 
-  // Completion View
+  // Completion View (Post-Lesson Recap)
   if (completed) {
-    return (
-      <div className="lesson-page">
-        <div className="lesson-main">
-          <div className="lesson-content completion-view">
-            <h2>Lesson Complete!</h2>
-            <div className="score-circle">
-              <span className="score-value">{finalScore}</span>
-              <span className="score-label">Score</span>
-            </div>
-            
-            <div className="feedback-lists">
-              <div>
-                <h4>Strengths</h4>
-                <ul>
-                  <li>Great comprehension of spoken prompts</li>
-                  <li>Good effort maintaining conversation</li>
-                </ul>
-              </div>
-              <div>
-                <h4>Focus Areas</h4>
-                <ul>
-                  <li>Review recent feedback items</li>
-                </ul>
-              </div>
-            </div>
+    if (!recapData) {
+       return <div className="lesson-page"><div className="lesson-main"><div className="thinking-state" style={{margin:'auto'}}>Analyzing your performance...</div></div></div>;
+    }
 
-            <div className="completion-actions">
-              <button className="btn-secondary" onClick={() => window.location.reload()}>Try Again</button>
-              <button className="btn-primary" onClick={() => navigate("/dashboard")}>Back to Dashboard</button>
+    const gradeClass = recapData.overall_grade ? `grade-${recapData.overall_grade.toLowerCase()}` : "grade-b";
+
+    return (
+      <div className="recap-card-fullscreen">
+        <div className="confetti-burst"></div>
+        <div className="recap-container">
+          <div className="recap-top">
+            <div className={`grade-circle ${gradeClass}`}>
+              {recapData.overall_grade || "B"}
             </div>
+            <div className="score-summary">
+              <h2>Lesson Complete!</h2>
+              <div className="score-number">Score: <span>{finalScore}</span></div>
+            </div>
+          </div>
+
+          <div className="recap-summary soft-card">
+            <p>{recapData.summary}</p>
+          </div>
+
+          <div className="recap-words">
+            <h3>Words You Practiced</h3>
+            <div className="words-scroll-row">
+              {recapData.words_practiced && recapData.words_practiced.map((wp, i) => (
+                <div key={i} className="word-chip" onClick={() => fetchPronunciationGuide(wp.word).then(() => { if (guideData?.normalAudio) playGuideAudio(guideData.normalAudio, false) })}>
+                   <span className="w-text">{wp.word}</span>
+                   <span className="w-def">{wp.definition}</span>
+                   <span className="w-audio-icon">🔊</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="recap-insights">
+            <div className="insight-card strength-card">
+              <h4>What you did well</h4>
+              <p>{recapData.top_strength}</p>
+            </div>
+            <div className="insight-card focus-card">
+              <h4>Practice before next lesson</h4>
+              <p>{recapData.focus_for_next}</p>
+            </div>
+          </div>
+
+          <div className="recap-actions">
+            <button className="btn-primary btn-large block-btn" onClick={() => navigate("/dashboard")}>
+              Return to Dashboard
+            </button>
           </div>
         </div>
       </div>
@@ -251,6 +373,31 @@ export default function LessonPage() {
         <div className="lesson-progress-wrap">
           <div className="lesson-progress-bar" style={{ width: `${progressPercent}%` }} />
         </div>
+      </div>
+
+      <div className={`anchor-panel ${currentAnchor.type === 'none' ? 'collapsed' : `type-${currentAnchor.type}`}`}>
+         {currentAnchor.type !== 'none' && (
+           <>
+             <div className="anchor-badge">{currentAnchor.type}</div>
+             {currentAnchor.type === 'letter' ? (
+               <div className="anchor-letter-pair">
+                 <div className="anchor-letter-box">
+                    <span className="letter">{currentAnchor.content ? currentAnchor.content.toUpperCase() : ""}</span>
+                    <span className="phonetic">Uppercase</span>
+                 </div>
+                 <div className="anchor-letter-box">
+                    <span className="letter">{currentAnchor.content ? currentAnchor.content.toLowerCase() : ""}</span>
+                    <span className="phonetic">Lowercase</span>
+                 </div>
+               </div>
+             ) : (
+               <div className="anchor-content">{currentAnchor.content}</div>
+             )}
+             {currentAnchor.translation && (
+               <div className="anchor-translation">{currentAnchor.translation}</div>
+             )}
+           </>
+         )}
       </div>
 
       <div className="lesson-main" ref={scrollRef}>
@@ -288,17 +435,52 @@ export default function LessonPage() {
       </div>
 
       <div className="lesson-controls">
+        
+        {(guideData || isGuideFetching) && (
+          <div className={`pronunciation-modeling-card ${isRecording ? 'hide' : ''}`}>
+             <div className="modeling-header">Pronunciation Guide</div>
+             {isGuideFetching ? (
+               <div style={{opacity: 0.5, padding: '2rem 0'}}>Preparing model...</div>
+             ) : (
+               <>
+                 <div className="modeling-word">{guideData.word}</div>
+                 <div className="modeling-ipa">/{guideData.phonetic}/</div>
+                 <div className="modeling-actions">
+                   <button 
+                     className="btn-model-normal" 
+                     onClick={() => playGuideAudio(guideData.normalAudio, false)}
+                     disabled={isPlaying}
+                   >
+                     Hear Normal
+                   </button>
+                   <button 
+                     className="btn-model-slow" 
+                     onClick={() => playGuideAudio(guideData.slowAudio, true)}
+                     disabled={isPlaying}
+                   >
+                     Hear Slowly
+                   </button>
+                 </div>
+                 {showRepeatPrompt && <div className="repeat-prompt">Now you try! Hold the mic.</div>}
+               </>
+             )}
+          </div>
+        )}
+      
         {!isInputStep && !isPlaying && !isProcessing && (
-          <button 
-            className={`record-btn ${isRecording ? "recording" : ""}`}
-            onMouseDown={startRecording}
-            onMouseUp={stopRecording}
-            onTouchStart={startRecording}
-            onTouchEnd={stopRecording}
-            title="Hold to speak"
-          >
-            🎙️
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
+            <button 
+              className={`record-btn ${isRecording ? "recording" : ""}`}
+              onMouseDown={startRecording}
+              onMouseUp={stopRecording}
+              onTouchStart={startRecording}
+              onTouchEnd={stopRecording}
+              title="Hold to speak"
+            >
+              🎙️
+            </button>
+            {recentScore !== null && <PronunciationBadge score={recentScore} />}
+          </div>
         )}
         {(isPlaying || isProcessing || isInputStep) && (
           <div style={{height: "80px", display: "flex", alignItems: "center", color: "rgba(255,255,255,0.5)"}}>
