@@ -1,0 +1,431 @@
+/* ============================================================
+   frontend/src/pages/settings.css
+   Settings Page — Deep Purple Glassmorphism
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+
+.settings-page {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #0f0c29 0%, #302b63 60%, #24243e 100%);
+  font-family: 'Inter', sans-serif;
+  color: #e2e8f0;
+}
+
+/* ─── Nav ──────────────────────────────────────────────────── */
+.settings-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  position: sticky;
+  top: 0;
+  background: rgba(15, 12, 41, 0.85);
+  backdrop-filter: blur(14px);
+  z-index: 100;
+}
+
+.settings-back-btn {
+  background: none;
+  border: none;
+  color: #a78bfa;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 8px 0;
+  min-width: 60px;
+  transition: color 0.2s;
+}
+
+.settings-back-btn:hover {
+  color: #c4b5fd;
+}
+
+.settings-title {
+  font-size: 1.2rem;
+  font-weight: 700;
+  margin: 0;
+  color: #fff;
+}
+
+/* ─── Main Container ────────────────────────────────────────── */
+.settings-main {
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 32px 20px 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+/* ─── Section ──────────────────────────────────────────────── */
+.settings-section {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 24px;
+  padding: 28px;
+}
+
+.settings-section-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin: 0 0 6px 0;
+  color: #e9d5ff;
+}
+
+.settings-section-desc {
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.5);
+  margin: 0 0 24px 0;
+  line-height: 1.5;
+}
+
+/* ─── Accent Cards Row ─────────────────────────────────────── */
+.accent-cards-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.accent-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 24px 16px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 2px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.22s ease;
+}
+
+.accent-card:hover {
+  background: rgba(168, 85, 247, 0.1);
+  border-color: rgba(168, 85, 247, 0.4);
+}
+
+.accent-card.selected {
+  background: rgba(124, 58, 237, 0.18);
+  border-color: #a855f7;
+  box-shadow: 0 0 20px rgba(168, 85, 247, 0.3);
+}
+
+.accent-card-flag {
+  font-size: 2rem;
+}
+
+.accent-card-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.accent-preview-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #fff;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: background 0.2s;
+}
+
+.accent-preview-btn:hover:not(:disabled) {
+  background: rgba(168, 85, 247, 0.3);
+}
+
+.accent-preview-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ─── Warning Banner ────────────────────────────────────────── */
+.settings-warning-banner {
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  border-radius: 12px;
+  padding: 12px 16px;
+  font-size: 0.88rem;
+  color: #fcd34d;
+  margin-bottom: 20px;
+  line-height: 1.5;
+}
+
+/* ─── Language Grid (Settings) ─────────────────────────────── */
+.settings-language-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 4px;
+}
+
+@media (max-width: 480px) {
+  .settings-language-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .accent-cards-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (min-width: 900px) {
+  .settings-language-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.settings-language-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 2px solid rgba(255, 255, 255, 0.07);
+  border-radius: 14px;
+  padding: 14px 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-height: 80px;
+  font-family: inherit;
+  color: inherit;
+}
+
+.settings-language-card:hover:not(:disabled) {
+  background: rgba(168, 85, 247, 0.1);
+  border-color: rgba(168, 85, 247, 0.4);
+  transform: translateY(-2px);
+}
+
+.settings-language-card.selected {
+  background: rgba(124, 58, 237, 0.18);
+  border-color: #a855f7;
+  box-shadow: 0 0 14px rgba(168, 85, 247, 0.25);
+}
+
+.settings-language-card:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ─── Account Fields ────────────────────────────────────────── */
+.settings-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 18px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.settings-field:last-child {
+  border-bottom: none;
+}
+
+.settings-field-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.settings-field-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.settings-field-value {
+  font-size: 0.97rem;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.settings-field-muted {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.settings-name-edit {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.settings-input {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(168, 85, 247, 0.4);
+  border-radius: 10px;
+  padding: 10px 14px;
+  color: #fff;
+  font-family: inherit;
+  font-size: 0.97rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.settings-input:focus {
+  border-color: #a855f7;
+  box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.18);
+}
+
+/* ─── Buttons ───────────────────────────────────────────────── */
+.settings-btn {
+  padding: 10px 20px;
+  border-radius: 10px;
+  border: none;
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  min-height: 44px;
+}
+
+.settings-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.settings-btn-primary {
+  background: linear-gradient(90deg, #7c3aed, #a855f7);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(124, 58, 237, 0.3);
+}
+
+.settings-btn-primary:hover:not(:disabled) {
+  box-shadow: 0 4px 18px rgba(124, 58, 237, 0.5);
+  transform: translateY(-1px);
+}
+
+.settings-btn-ghost {
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.settings-btn-ghost:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.settings-btn-danger {
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #f87171;
+}
+
+.settings-btn-danger:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.22);
+  border-color: #ef4444;
+}
+
+/* ─── Danger Zone ───────────────────────────────────────────── */
+.settings-danger-zone {
+  border-top: 1px solid rgba(239, 68, 68, 0.15) !important;
+  margin-top: 8px;
+  padding-top: 20px;
+}
+
+.settings-danger-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba(239, 68, 68, 0.6);
+  margin: 0 0 10px 0;
+}
+
+/* ─── Saving Indicator ──────────────────────────────────────── */
+.settings-saving {
+  font-size: 0.82rem;
+  color: rgba(168, 85, 247, 0.7);
+  margin-top: 8px;
+  text-align: center;
+}
+
+/* ─── Toast ─────────────────────────────────────────────────── */
+.settings-toast {
+  position: fixed;
+  bottom: 32px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(30, 20, 60, 0.95);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(168, 85, 247, 0.35);
+  border-radius: 12px;
+  padding: 14px 24px;
+  color: #e9d5ff;
+  font-size: 0.95rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  z-index: 9999;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  animation: toastIn 0.3s ease-out;
+  white-space: nowrap;
+}
+
+.settings-toast-icon {
+  color: #a855f7;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(10px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* ─── Dialog Overlay ────────────────────────────────────────── */
+.settings-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9998;
+  padding: 20px;
+}
+
+.settings-dialog {
+  background: linear-gradient(145deg, #1e1040, #2d1b5e);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-radius: 24px;
+  padding: 36px;
+  max-width: 420px;
+  width: 100%;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.settings-dialog h3 {
+  margin: 0 0 12px 0;
+  font-size: 1.2rem;
+  color: #f87171;
+}
+
+.settings-dialog p {
+  margin: 0 0 28px 0;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.settings-dialog p strong {
+  color: #fca5a5;
+}
+
+.settings-dialog-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}

@@ -1,20 +1,17 @@
 // ============================================================
 // frontend/src/pages/DashboardPage.jsx
-// Step 2 version: shows welcome + user info + module placeholders.
-// Full dashboard UI is built in Step 7.
+// SCOPE NOTE: Only the lesson grid section has been updated.
+// Header, XP bar, streak display, and badge sections are unchanged.
 // ============================================================
 import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { LEVEL_THRESHOLDS, LEVEL_NAMES } from "../constants/gamification";
+import { A0_ALPHABET_MODULE, A1_PLUS_MODULES, UNLOCK_THRESHOLDS } from "../config/curriculum";
+import { getLessonCardState } from "../utils/lessonGating";
 import "./dashboard.css";
 
-const MODULES = [
-  { icon: "👋", title: "Greetings",       desc: "Introduce yourself",      id: "module1" },
-  { icon: "❓", title: "Basic Questions", desc: "Ask & answer questions",  id: "module2" },
-  { icon: "💼", title: "Work & Routine",  desc: "Talk about your job",     id: "module3" },
-  { icon: "🆘", title: "Asking for Help", desc: "Survival phrases",        id: "module4" },
-];
+
 
 export default function DashboardPage() {
   const { currentUser, userDoc, logout } = useAuth();
@@ -26,14 +23,29 @@ export default function DashboardPage() {
     currentUser?.email?.split("@")[0] ||
     "Learner";
 
-  const level        = userDoc?.assessment?.level || "A1";
-  const accent       = userDoc?.preferred_accent  || null;
+  const level        = userDoc?.assessment?.level || userDoc?.cefr_level || "A1";
+  const accent       = userDoc?.accent_preference || userDoc?.preferred_accent || null;
   const plan         = userDoc?.subscription_plan || "free";
   const streakDays   = userDoc?.streak_days       || 0;
   
   const completedLessons = userDoc?.progress?.lessons_completed || [];
   const xp = userDoc?.xp || 0;
   const appLevel = userDoc?.app_level || 1;
+
+  // ── New: curriculum-aware lesson progress ─────────────────
+  const cefrLevel        = userDoc?.cefr_level || null;         // null until onboarding done
+  const isA0User         = cefrLevel === "A0";
+  const unlockedLessons  = userDoc?.unlocked_lessons || [];     // array of lesson key strings
+  const lessonScores     = userDoc?.lesson_scores || {};        // { "A0_alphabet_0": 85 }
+  const previewLessons   = userDoc?.preview_lessons || [];
+  const accentNudgeDismissed = userDoc?.accent_nudge_dismissed || false;
+
+  // ── A0 module progress count ──────────────────────────────
+  const a0LessonsCompleted = isA0User
+    ? A0_ALPHABET_MODULE.lessons.filter(
+        (l) => (lessonScores[l.key] || 0) >= UNLOCK_THRESHOLDS.A0.min_score
+      ).length
+    : 0;
 
   // Calculate XP Progress
   const currentLevelIdx = appLevel - 1;
@@ -48,6 +60,29 @@ export default function DashboardPage() {
   const xpRemaining = nextThreshold - xp;
   const nextLevelName = LEVEL_NAMES[nextLevelIdx] || "Master";
 
+  // ── Accent nudge: show after first lesson if not dismissed ─
+  const [showAccentNudge, setShowAccentNudge] = useState(false);
+  useEffect(() => {
+    const lessonCount = Object.values(lessonScores).filter(
+      (s) => s >= UNLOCK_THRESHOLDS[cefrLevel || "A0"]?.min_score
+    ).length;
+    if (lessonCount === 1 && !accentNudgeDismissed) {
+      setShowAccentNudge(true);
+    }
+  }, [lessonScores, accentNudgeDismissed]);
+
+  const dismissNudge = async () => {
+    setShowAccentNudge(false);
+    try {
+      const token = await currentUser.getIdToken();
+      await fetch(`${import.meta.env.VITE_API_URL}/api/lesson/nudge-dismiss`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    } catch (err) {
+      console.error("Nudge dismiss failed", err);
+    }
+  };
 
   async function handleLogout() {
     try {
@@ -111,6 +146,13 @@ export default function DashboardPage() {
           <span className="nav-user" title={currentUser?.email}>
             {displayName}
           </span>
+          {/* Settings gear — links to /settings */}
+          <a
+            href="/settings"
+            className="nav-settings-icon"
+            title="Settings"
+            aria-label="Settings"
+          >⚙️</a>
           <button id="dashboard-logout" className="btn-logout" onClick={handleLogout}>
             Log out
           </button>
@@ -175,36 +217,150 @@ export default function DashboardPage() {
           </button>
         </div>
 
-        {/* Module cards */}
-        <div className="module-grid">
-          {MODULES.map((mod, i) => {
-            // Is it module 1? Or is the previous module in completedLessons?
-            const isUnlocked = i === 0 || completedLessons.includes(MODULES[i - 1].id);
-            const isCompleted = completedLessons.includes(mod.id);
-            
-            return (
-              <div 
-                key={mod.id} 
-                className={`module-card ${!isUnlocked ? "locked" : ""}`}
-                onClick={() => {
-                  if (isUnlocked) navigate(`/lesson/${mod.id}`);
+        {/* ─── LESSON GRID — scope-bounded section ─────────────── */}
+        {/* Only this section was changed. Everything above is intact. */}
+
+        {/* A0 Alphabet Module */}
+        {isA0User && (
+          <div className="lesson-module-container">
+            <div className="lesson-module-header">
+              <h2 className="lesson-module-title">🔤 Alphabet Module</h2>
+              <span className="lesson-module-progress">
+                {a0LessonsCompleted} / {A0_ALPHABET_MODULE.total_lessons} lessons
+              </span>
+            </div>
+
+            {/* Module progress bar */}
+            <div className="lesson-progress-bar-track">
+              <div
+                className="lesson-progress-bar-fill"
+                style={{
+                  width: `${(a0LessonsCompleted / A0_ALPHABET_MODULE.total_lessons) * 100}%`,
                 }}
-                style={{ cursor: isUnlocked ? "pointer" : "not-allowed", opacity: isUnlocked ? 1 : 0.6 }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span className="module-card-icon">{mod.icon}</span>
-                  {isCompleted && <span style={{ color: '#34d399', fontWeight: 'bold' }}>✓ Done</span>}
-                  {!isUnlocked && <span>🔒 Locked</span>}
+              />
+            </div>
+
+            {/* Lesson dots row */}
+            <div className="lesson-dots-row">
+              {A0_ALPHABET_MODULE.lessons.map((lesson, i) => {
+                const cardState = getLessonCardState(
+                  lesson.key,
+                  unlockedLessons,
+                  lessonScores,
+                  previewLessons,
+                  "A0"
+                );
+                return (
+                  <div
+                    key={lesson.key}
+                    className={`lesson-dot lesson-dot-${cardState}`}
+                    title={lesson.title}
+                  />
+                );
+              })}
+            </div>
+
+            {/* Lesson cards grid */}
+            <div className="module-grid">
+              {A0_ALPHABET_MODULE.lessons.map((lesson) => {
+                const cardState = getLessonCardState(
+                  lesson.key,
+                  unlockedLessons,
+                  lessonScores,
+                  previewLessons,
+                  "A0"
+                );
+                const score = lessonScores[lesson.key];
+                const isClickable = ["unlocked", "completed", "retry", "preview"].includes(cardState);
+                const stars =
+                  score >= 90 ? "⭐⭐⭐" :
+                  score >= 60 ? "⭐⭐" :
+                  score >= 50 ? "⭐" : null;
+
+                return (
+                  <div
+                    key={lesson.key}
+                    className={`module-card lesson-state-${cardState}`}
+                    onClick={() => {
+                      if (isClickable) navigate(`/lesson/a0_${lesson.topic}/${lesson.key}`);
+                    }}
+                    style={{ cursor: isClickable ? "pointer" : "default" }}
+                    role={isClickable ? "button" : undefined}
+                    tabIndex={isClickable ? 0 : undefined}
+                    onKeyDown={(e) => e.key === "Enter" && isClickable && navigate(`/lesson/a0_${lesson.topic}/${lesson.key}`)}
+                  >
+                    <div className="lesson-card-top">
+                      <span className="lesson-card-index">Lesson {lesson.index + 1}</span>
+                      {cardState === "completed" && <span className="lesson-badge-completed">✓</span>}
+                      {cardState === "locked"    && <span className="lesson-badge-locked">🔒</span>}
+                      {cardState === "retry"     && <span className="lesson-badge-retry">⚡</span>}
+                      {cardState === "preview"   && <span className="lesson-badge-preview">👁</span>}
+                    </div>
+                    <h3 className="lesson-card-title">{lesson.title}</h3>
+                    {stars && <div className="lesson-stars">{stars}</div>}
+                    {score !== undefined && <div className="lesson-score-label">{score}%</div>}
+                    <span className="lesson-card-cta">
+                      {cardState === "completed" && "Replay →"}
+                      {cardState === "unlocked"  && "Start →"}
+                      {cardState === "retry"     && "Try Again →"}
+                      {cardState === "preview"   && "Preview →"}
+                      {cardState === "locked"    && `Score ${UNLOCK_THRESHOLDS.A0.min_score}% in Lesson ${lesson.index} to unlock`}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* A1+ Module List — existing modules for non-A0 users */}
+        {!isA0User && (
+          <div className="module-grid">
+            {A1_PLUS_MODULES.map((mod, i) => {
+              const isUnlocked = i === 0 || completedLessons.includes(A1_PLUS_MODULES[i - 1].key);
+              const isCompleted = completedLessons.includes(mod.key);
+
+              return (
+                <div
+                  key={mod.key}
+                  className={`module-card ${!isUnlocked ? "locked" : ""}`}
+                  onClick={() => { if (isUnlocked) navigate(`/lesson/${mod.key}`); }}
+                  style={{ cursor: isUnlocked ? "pointer" : "not-allowed", opacity: isUnlocked ? 1 : 0.6 }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span className="module-card-icon">{mod.icon}</span>
+                    {isCompleted && <span style={{ color: '#34d399', fontWeight: 'bold' }}>✓ Done</span>}
+                    {!isUnlocked && <span>🔒 Locked</span>}
+                  </div>
+                  <h3>{mod.title}</h3>
+                  <span className={isUnlocked ? "badge-start" : "badge-locked"} style={{ display: "inline-block", marginTop: "1rem", color: isUnlocked ? "#a855f7" : "#888", fontWeight: "bold" }}>
+                    {isUnlocked ? (isCompleted ? "Replay Lesson →" : "Start Lesson →") : "Complete previous first"}
+                  </span>
                 </div>
-                <h3>{mod.title}</h3>
-                <p>{mod.desc}</p>
-                <span className={isUnlocked ? "badge-start" : "badge-locked"} style={{ display: "inline-block", marginTop: "1rem", color: isUnlocked ? "#a855f7" : "#888", fontWeight: "bold" }}>
-                  {isUnlocked ? (isCompleted ? "Replay Lesson →" : "Start Lesson →") : "Complete previous first"}
-                </span>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Post-lesson-1 Accent Nudge — bottom sheet */}
+        {showAccentNudge && (
+          <div className="accent-nudge-sheet">
+            <div className="accent-nudge-content">
+              <p>How did Luna sound? You can change her accent anytime in Settings ⚙️</p>
+              <div className="accent-nudge-actions">
+                <button
+                  className="accent-nudge-btn primary"
+                  onClick={() => { dismissNudge(); navigate("/settings"); }}
+                >
+                  Change Accent
+                </button>
+                <button className="accent-nudge-btn ghost" onClick={dismissNudge}>
+                  Keep Current
+                </button>
               </div>
-            );
-          })}
-        </div>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );

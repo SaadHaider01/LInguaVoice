@@ -42,32 +42,61 @@ router.post("/create-user", async (req, res) => {
     // Build the user document per the schema in the spec
     const now = admin.firestore.FieldValue.serverTimestamp();
     const userData = {
+      // ─── Identity ───────────────────────────────────────────────
       email:                        decoded.email || req.body.email || "",
       display_name:                 decoded.name  || req.body.displayName || "Learner",
       created_at:                   now,
-      native_language:              req.body.nativeLanguage || "unknown",
+
+      // ─── Language & Preferences ─────────────────────────────────
+      native_language:              "other",        // set in onboarding step 3
+      accent_preference:            "american",     // default; user can change in Settings
       target_language:              "English",
-      preferred_accent:             null,          // set in Step 4
+
+      // ─── Subscription ───────────────────────────────────────────
       subscription_plan:            "free",
       subscription_stripe_id:       null,
       subscription_expiry:          null,
-      lessons_completed_this_week:  [],
+
+      // ─── Engagement ─────────────────────────────────────────────
       streak_days:                  0,
       last_active:                  now,
+      xp:                           0,
+      app_level:                    1,
+      badges:                       [],
+
+      // ─── CEFR & Zero-Knowledge ──────────────────────────────────
+      is_zero_knowledge:            false,
+      cefr_level:                   null,           // set after diagnostic or A0 path
       assessment: {
-        completed:              false,
-        level:                  null,
-        grammar_score:          null,
-        vocabulary_score:       null,
-        pronunciation_score:    null,
-        fluency_score:          null,
-        detected_native_accent: null,
-        completed_date:         null,
+        completed:                  false,
+        level:                      null,
+        grammar_score:              null,
+        vocabulary_score:           null,
+        pronunciation_score:        null,
+        fluency_score:              null,
+        detected_native_accent:     null,
+        completed_date:             null,
       },
-      xp: 0,
-      app_level: 1,
-      badges: [],
-      onboarding_complete: false,
+
+      // ─── Curriculum Progress ─────────────────────────────────────
+      current_module:               null,           // set after onboarding / A0 path
+      current_lesson:               0,
+      current_step:                 "warmup",
+      lesson_xp:                    {},             // { "A0_alphabet_0": 120 }
+      lesson_scores:                {},             // { "A0_alphabet_0": 75 }
+      lesson_attempts:              {},             // { "A0_alphabet_0": 2 }
+      unlocked_lessons:             [],             // populated after diagnostic or A0 path
+      lessons_completed_this_week:  [],
+
+      // ─── Progress (legacy + new) ────────────────────────────────
+      progress: {
+        lessons_completed:          [],
+        accuracy_history:           [],
+      },
+
+      // ─── Onboarding & Nudges ────────────────────────────────────
+      onboarding_complete:          false,
+      accent_nudge_dismissed:       false,
     };
 
     await userRef.set(userData);

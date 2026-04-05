@@ -130,13 +130,58 @@
   margin-bottom: 30px;
 }
 
+/* Step 1 audio row — waveform + play button side by side */
+.step1-audio-row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+/* "▶ Hear Luna" play button */
+.luna-play-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 22px;
+  background: rgba(168, 85, 247, 0.15);
+  border: 1px solid rgba(168, 85, 247, 0.4);
+  border-radius: 99px;
+  color: #c4b5fd;
+  font-size: 0.92rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.2s ease;
+}
+
+.luna-play-btn:hover:not(:disabled) {
+  background: rgba(168, 85, 247, 0.28);
+  border-color: #a855f7;
+  color: #fff;
+}
+
+.luna-play-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Loading state text */
+.intro-loading {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.4);
+  margin: 0 0 16px 0;
+  font-style: italic;
+}
+
 /* Waveform */
 .onboarding-waveform {
   display: flex;
   align-items: center;
   gap: 6px;
   height: 40px;
-  margin-bottom: 40px;
+  margin-bottom: 0;
 }
 
 .waveform-bar {
@@ -357,14 +402,14 @@
 /* Mobile Responsiveness */
 @media (max-width: 600px) {
   .onboarding-page {
-    padding-bottom: 100px;
+    padding-bottom: 120px;
   }
 
   .onboarding-container {
     max-width: none;
   }
 
-  .bottom-fixed {
+  .bottom-fixed, .onboarding-actions.bottom-fixed {
     position: fixed;
     bottom: 24px;
     left: 20px;
@@ -390,4 +435,212 @@
     font-size: 1rem;
     padding: 16px;
   }
+
+  .language-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
+
+/* ─── Step 3: Language Selection Grid ──────────────────────── */
+.step-3 {
+  align-items: flex-start;
+  text-align: left;
+}
+
+.step-3 h2 {
+  text-align: center;
+  width: 100%;
+}
+
+.lang-subheading {
+  text-align: center;
+  width: 100%;
+  font-size: 1rem;
+  color: rgba(255, 255, 255, 0.65);
+  margin: 8px 0 24px 0;
+  font-style: italic;
+  transition: all 0.3s ease;
+}
+
+.language-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  width: 100%;
+  margin: 16px 0 24px 0;
+}
+
+@media (max-width: 480px) {
+  .language-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 900px) {
+  .language-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.language-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 16px 8px;
+  cursor: pointer;
+  transition: all 0.22s ease;
+  min-height: 90px;
+  font-family: inherit;
+  color: inherit;
+}
+
+.language-card:hover {
+  background: rgba(168, 85, 247, 0.1);
+  border-color: rgba(168, 85, 247, 0.4);
+  transform: translateY(-2px);
+}
+
+.language-card.selected {
+  background: rgba(124, 58, 237, 0.2);
+  border-color: #a855f7;
+  box-shadow: 0 0 18px rgba(168, 85, 247, 0.3);
+}
+
+.lang-flag {
+  font-size: 1.6rem;
+  line-height: 1;
+}
+
+.lang-english {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+  text-align: center;
+}
+
+.lang-native {
+  font-size: 0.82rem;
+  color: rgba(255, 255, 255, 0.5);
+  text-align: center;
+  line-height: 1.3;
+}
+
+/* ─── RTL Text ──────────────────────────────────────────────── */
+.rtl-text {
+  direction: rtl;
+  text-align: right;
+  unicode-bidi: embed;
+}
+
+.native-text {
+  unicode-bidi: embed;
+}
+
+/* ─── Zero Knowledge Section ────────────────────────────────── */
+.zero-knowledge-section {
+  width: 100%;
+  margin-top: 8px;
+  margin-bottom: 100px; /* space for fixed bottom btn */
+  padding: 20px;
+  background: rgba(124, 58, 237, 0.08);
+  border: 1px solid rgba(168, 85, 247, 0.2);
+  border-radius: 16px;
+}
+
+.zk-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  cursor: pointer;
+  width: 100%;
+}
+
+.zk-checkbox-wrapper {
+  position: relative;
+  flex-shrink: 0;
+}
+
+/* Hide native checkbox — replaced by custom */
+.zk-checkbox-input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+/* Custom checkbox — 44px tap target */
+.zk-custom-checkbox {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  border: 2px solid rgba(168, 85, 247, 0.5);
+  background: rgba(255, 255, 255, 0.05);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.22s ease;
+  cursor: pointer;
+}
+
+.zk-custom-checkbox.checked {
+  background: linear-gradient(135deg, #7c3aed, #a855f7);
+  border-color: #a855f7;
+  box-shadow: 0 0 14px rgba(168, 85, 247, 0.45);
+}
+
+.zk-check {
+  color: #fff;
+  font-size: 1.2rem;
+  font-weight: 700;
+  animation: checkPop 0.2s ease-out;
+}
+
+@keyframes checkPop {
+  0% { transform: scale(0.5); opacity: 0; }
+  60% { transform: scale(1.2); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.zk-label-text {
+  font-size: 1rem;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.88);
+  flex: 1;
+}
+
+.zk-confirmation {
+  margin-top: 16px;
+  padding: 14px;
+  background: rgba(52, 211, 153, 0.1);
+  border: 1px solid rgba(52, 211, 153, 0.25);
+  border-radius: 12px;
+  font-size: 0.95rem;
+  color: #6ee7b7;
+  line-height: 1.5;
+  text-align: center;
+}
+
+/* ─── Action buttons in Step 3 ──────────────────────────────── */
+.onboarding-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  max-width: 420px;
+  margin-top: 16px;
+}
+
+/* ─── Shared fade-in animation ──────────────────────────────── */
+.fade-in {
+  animation: fadeIn 0.35s ease-out forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+

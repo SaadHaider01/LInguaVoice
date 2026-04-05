@@ -37,15 +37,17 @@ if (!admin.apps.length) {
   }
 }
 
-const authRoutes       = require("./routes/auth");
-const lessonRoute      = require("./routes/lesson");
-const progressRoutes   = require("./routes/progress");
-const paymentRoutes    = require("./routes/payments");
-const diagnosticRoutes = require("./routes/diagnostic");
-const accentRoutes     = require("./routes/accent");
-const vocabRoutes      = require("./routes/vocab");
-const xpRoutes         = require("./routes/xp");
-const onboardingRoutes = require("./routes/onboarding");
+const authRoutes        = require("./routes/auth");
+const lessonRoute       = require("./routes/lesson");
+const lessonGatingRoutes = require("./routes/lessonGating");
+const progressRoutes    = require("./routes/progress");
+const paymentRoutes     = require("./routes/payments");
+const diagnosticRoutes  = require("./routes/diagnostic");
+const accentRoutes      = require("./routes/accent");
+const vocabRoutes       = require("./routes/vocab");
+const xpRoutes          = require("./routes/xp");
+const onboardingRoutes  = require("./routes/onboarding");
+const settingsRoutes    = require("./routes/settings");
 
 const app  = express();
 const PORT = process.env.PORT || 3001;
@@ -85,12 +87,14 @@ app.get("/health", (_req, res) => {
 app.use("/api/auth",       authRoutes);
 app.use("/api/diagnostic", diagnosticRoutes);
 app.use("/api/accent",     accentRoutes);
-app.use("/api/lesson",     lessonRoute);
+app.use("/api/lesson",     lessonRoute);       // existing lesson engine
+app.use("/api/lesson",     lessonGatingRoutes); // gating: /gating, /skip, /result, /nudge-dismiss
 app.use("/api/progress",   progressRoutes);
 app.use("/api/payments",   paymentRoutes);
 app.use("/api/vocab",      vocabRoutes);
 app.use("/api/xp",         xpRoutes);
 app.use("/api/onboarding", onboardingRoutes);
+app.use("/api/settings",   settingsRoutes);
 
 // ─── 404 handler ─────────────────────────────────────────────────────────────
 app.use((_req, res) => {

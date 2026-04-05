@@ -16,6 +16,7 @@ import ProgressPage    from "./pages/ProgressPage";
 import VocabPage       from "./pages/VocabPage";
 import BadgesPage      from "./pages/BadgesPage";
 import OnboardingPage  from "./pages/OnboardingPage";
+import SettingsPage    from "./pages/SettingsPage";
 
 function NotFound() {
   return (
@@ -108,6 +109,15 @@ export default function App() {
             <ProtectedRoute>
               <OnboardingGate>
                 <LessonPage />
+              </OnboardingGate>
+            </ProtectedRoute>
+          } />
+
+          {/* Settings route */}
+          <Route path="/settings" element={
+            <ProtectedRoute>
+              <OnboardingGate>
+                <SettingsPage />
               </OnboardingGate>
             </ProtectedRoute>
           } />

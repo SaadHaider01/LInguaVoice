@@ -57,6 +57,12 @@ router.get("/intro", async (req, res) => {
 });
 
 // ─── POST /api/onboarding/complete ───────────────────────────────────────────
+// Called when:
+//   A) Zero-knowledge checkbox ticked (is_zero_knowledge = true)
+//   B) After diagnostic completes (cefr_level set externally, called again)
+// onboarding_complete set ONLY when BOTH:
+//   Condition A: native_language is set (not null/empty)
+//   Condition B: is_zero_knowledge = true OR cefr_level is set
 router.post("/complete", async (req, res) => {
   const decoded = await verifyToken(req);
   if (!decoded) return res.status(401).json({ error: "Unauthorized" });
@@ -65,14 +71,47 @@ router.post("/complete", async (req, res) => {
   const userRef = db.collection("users").doc(decoded.uid);
 
   try {
-    const { accent } = req.body;
-    const updateData = { onboarding_complete: true };
-    if (accent) {
-      updateData.preferred_accent = accent;
+    const {
+      native_language,
+      is_zero_knowledge,
+      cefr_level,      // passed when zero-knowledge path chosen
+    } = req.body;
+
+    const updateData = {};
+
+    // Write native_language if provided
+    if (native_language) {
+      updateData.native_language = native_language;
+    }
+
+    // Zero-knowledge path: assign A0 curriculum fields
+    if (is_zero_knowledge === true) {
+      updateData.is_zero_knowledge = true;
+      updateData.cefr_level        = cefr_level || "A0";
+      updateData.current_module    = "alphabet";
+      updateData.current_lesson    = 0;
+      updateData.current_step      = "warmup";
+      updateData.unlocked_lessons  = admin.firestore.FieldValue.arrayUnion("A0_alphabet_0");
+    } else {
+      updateData.is_zero_knowledge = false;
+    }
+
+    // Check both conditions before setting onboarding_complete
+    const snap = await userRef.get();
+    const existing = snap.exists ? snap.data() : {};
+    const effectiveLang    = native_language || existing.native_language;
+    const effectiveZeroKnow = (is_zero_knowledge === true) || existing.is_zero_knowledge;
+    const effectiveCefr    = cefr_level || existing.cefr_level;
+
+    const conditionA = effectiveLang && effectiveLang !== "other_unset";
+    const conditionB = effectiveZeroKnow || !!effectiveCefr;
+
+    if (conditionA && conditionB) {
+      updateData.onboarding_complete = true;
     }
 
     await userRef.update(updateData);
-    return res.json({ success: true });
+    return res.json({ success: true, onboarding_complete: !!(conditionA && conditionB) });
   } catch (err) {
     console.error("[Onboarding Complete Error]", err.message);
     return res.status(500).json({ error: "Failed to complete onboarding" });
