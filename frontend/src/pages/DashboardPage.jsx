@@ -14,7 +14,7 @@ import "./dashboard.css";
 
 
 export default function DashboardPage() {
-  const { currentUser, userDoc, logout } = useAuth();
+  const { currentUser, userDoc, logout, refreshUserDoc } = useAuth();
   const navigate = useNavigate();
 
   const displayName =

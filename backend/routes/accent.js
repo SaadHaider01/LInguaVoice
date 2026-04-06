@@ -48,7 +48,13 @@ router.get("/preview", async (req, res) => {
   const decoded = await verifyToken(req);
   if (!decoded) return res.status(401).json({ error: "Unauthorized" });
 
+  const db = admin.firestore();
+  const userSnap = await db.collection("users").doc(decoded.uid).get();
+  const userData = userSnap.exists ? userSnap.data() : {};
+
   const accent = req.query.accent || "american";
+  const native_language = userData.native_language || "english";
+
   // Short texts synthesize in ~3-5s on CPU vs 30+ for long sentences
   const previewTexts = {
     american: "Hi! I'm your American English coach. Let's improve together!",
@@ -60,7 +66,7 @@ router.get("/preview", async (req, res) => {
   try {
     const flaskRes = await axios.post(
       `${FLASK_URL}/synthesize`,
-      { text, accent },
+      { text, accent, native_language },
       { responseType: "arraybuffer", timeout: 90_000 }  // 90s — Kokoro cold start can take 40s on CPU
     );
 

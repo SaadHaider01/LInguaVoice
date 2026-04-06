@@ -52,6 +52,14 @@ export default function LessonPage() {
   const [finalScore, setFinalScore] = useState(0);
   const [recapData, setRecapData] = useState(null);
   
+  const [hasStarted, setHasStarted] = useState(false);
+  const [pendingAudio, setPendingAudio] = useState(null);
+  
+  const [isA0, setIsA0] = useState(false);
+  const [lessonTopic, setLessonTopic] = useState("");
+  const [lessonIndex, setLessonIndex] = useState(0);
+  const [sessionStats, setSessionStats] = useState({ total_attempts: 0, correct_attempts: 0 });
+  
   const [currentAnchor, setCurrentAnchor] = useState({ type: "none", content: "", translation: "" });
   const [recentScore, setRecentScore] = useState(null);
   
@@ -134,6 +142,14 @@ export default function LessonPage() {
         if (active) {
           setSessionId(data.sessionId);
           setCurrentStep(data.step_index);
+          
+          if (data.is_a0) {
+            setIsA0(true);
+            setLessonTopic(data.lesson_topic || "");
+            setLessonIndex(data.lesson_index || 0);
+            if (data.session_stats) setSessionStats(data.session_stats);
+          }
+
           setConversation([{
              role: "teacher", 
              text: data.aiResponseJSON?.teacher_response || "" 
@@ -146,7 +162,9 @@ export default function LessonPage() {
           setLoading(false);
           
           if (data.audioBase64) {
-            playAudio(data.audioBase64);
+            setPendingAudio(data.audioBase64);
+          } else {
+            setHasStarted(true);
           }
         }
       } catch (err) {
@@ -201,9 +219,20 @@ export default function LessonPage() {
     formData.append("audio", blob);
     formData.append("sessionId", sessionId);
 
+    if (isA0) {
+      const stepMap = ["warmup", "input", "guided", "free", "feedback"];
+      formData.append("step", stepMap[currentStep] || "guided");
+      formData.append("native_language", userDoc?.native_language || "other");
+      formData.append("lesson_topic", lessonTopic);
+      formData.append("lesson_index", lessonIndex);
+      formData.append("accent_preference", userDoc?.accent_preference || "american");
+      formData.append("session_stats", JSON.stringify(sessionStats));
+    }
+
     try {
+      const endpoint = isA0 ? "/api/lesson/a0-turn" : "/api/lesson/turn";
       const token = await currentUser.getIdToken();
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/lesson/turn`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}${endpoint}`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: formData
@@ -211,6 +240,10 @@ export default function LessonPage() {
       
       if (!res.ok) throw new Error("Turn failed");
       const data = await res.json();
+      
+      if (isA0 && data.session_stats) {
+        setSessionStats(data.session_stats);
+      }
 
       setConversation(prev => [
         ...prev, 
@@ -244,10 +277,25 @@ export default function LessonPage() {
 
       if (data.completed) {
         setCompleted(true);
-        setFinalScore(data.final_score);
-        if (data.recap) setRecapData(data.recap);
+        const score = data.final_score ?? data.aiResponseJSON?.student_score ?? 75;
+        setFinalScore(score);
+        if (data.recap) {
+          setRecapData(data.recap);
+        } else if (isA0) {
+          // A0: Flask doesn't send a recap object — build one from what we have
+          const grade = score >= 90 ? "A" : score >= 75 ? "B" : score >= 60 ? "C" : "D";
+          setRecapData({
+            overall_grade:   grade,
+            summary:         `Great job! You practiced ${lessonTopic} today. Keep it up!`,
+            words_practiced: currentAnchor.type !== "none"
+              ? [{ word: currentAnchor.content, definition: currentAnchor.translation }]
+              : [],
+            top_strength:    "You listened carefully and tried every time.",
+            focus_for_next:  `Practice saying "${currentAnchor.content || "today's letter"}" until it feels natural.`,
+          });
+        }
         if (data.xp_payload) window.dispatchEvent(new CustomEvent("gamification_pushed", { detail: data.xp_payload }));
-        refreshUserDoc(); // update dashboard stats
+        refreshUserDoc();
       }
 
     } catch (err) {
@@ -297,6 +345,28 @@ export default function LessonPage() {
 
   if (loading) return <div className="lesson-page"><div className="lesson-main"><div className="thinking-state" style={{margin:'auto'}}>Loading lesson...</div></div></div>;
   if (error) return <div className="lesson-page"><div className="lesson-main"><div style={{margin:'auto', color:'#f87171'}}>{error}</div></div></div>;
+
+  if (!hasStarted && pendingAudio) {
+    return (
+      <div className="lesson-page">
+        <div className="lesson-main">
+          <div style={{ margin: 'auto', textAlign: 'center' }}>
+            <h2 style={{ marginBottom: '1rem', fontSize: '2rem' }}>Ready to begin?</h2>
+            <p style={{ color: '#aaa', marginBottom: '2rem', fontSize: '1.2rem' }}>Make sure your sound is on so you can hear the teacher.</p>
+            <button 
+              className="btn-primary btn-large block-btn" 
+              onClick={() => {
+                setHasStarted(true);
+                playAudio(pendingAudio);
+              }}
+            >
+              Start Lesson
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Completion View (Post-Lesson Recap)
   if (completed) {

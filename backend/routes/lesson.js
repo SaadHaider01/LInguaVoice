@@ -43,9 +43,9 @@ async function verifyToken(req) {
 }
 
 // ─── TTS Helper ──────────────────────────────────────────────────────────────
-async function generateAudioBase64(text, accent) {
+async function generateAudioBase64(text, accent, native_language = 'english') {
   try {
-    const res = await axios.post(`${FLASK_URL}/synthesize`, { text, accent }, {
+    const res = await axios.post(`${FLASK_URL}/synthesize`, { text, accent, native_language }, {
       responseType: 'arraybuffer',
       timeout: 30000 // 30s limit for Kokoro local synthesis
     });
@@ -104,17 +104,87 @@ router.post("/init", async (req, res) => {
   if (!decoded) return res.status(401).json({ error: "Unauthorized" });
 
   const { moduleId, lessonId } = req.body;
-  if (!moduleId || !curriculum[moduleId]) {
-    return res.status(400).json({ error: "Valid moduleId is required" });
-  }
+  if (!moduleId) return res.status(400).json({ error: "moduleId is required" });
 
   const db = admin.firestore();
-  let userSnap = await db.collection("users").doc(decoded.uid).get();
+  const userSnap = await db.collection("users").doc(decoded.uid).get();
   if (!userSnap.exists) return res.status(404).json({ error: "User not found" });
   const userData = userSnap.data();
 
+  // ── A0 branch: proxy to Flask /lesson ─────────────────────────────────────
+  // A0 lessonIds look like "A0_alphabet_0". moduleIds look like "a0_alphabet".
+  const isA0Module = String(moduleId).toLowerCase().startsWith("a0_")
+    || userData.cefr_level === "A0";
+
+  if (isA0Module) {
+    const accentA0    = userData.accent_preference || userData.preferred_accent || "american";
+    const nativeLangA0 = userData.native_language || "other";
+    // lessonId e.g. "A0_alphabet_0" → index = last segment
+    const lessonIndex  = lessonId ? (parseInt(lessonId.split("_").pop()) || 0) : 0;
+    // Derive lesson topic from lessonIndex (0="Letter A", 1="Letter B", etc.)
+    const ALPHABET = ["A","B","C","D","E","F","G","H","I","J","K","L","M",
+                      "N","O","P","Q","R","S","T","U","V","W","X","Y","Z"];
+    const lessonTopic  = `The letter ${ALPHABET[lessonIndex] || "A"}`;
+
+    try {
+      const flaskRes = await axios.post(`${FLASK_URL}/lesson`, {
+        level:             "A0",
+        step:              "warmup",
+        native_language:   nativeLangA0,
+        accent_preference: accentA0,
+        lesson_topic:      lessonTopic,
+        is_zero_knowledge: userData.is_zero_knowledge !== false,
+        history:           [],
+        audio:             null,
+        session_stats:     { total_attempts: 0, correct_attempts: 0 },
+      }, { timeout: 60000 });
+
+      const fd = flaskRes.data;
+      // Flask /lesson returns: { text, audio, step, session_stats, [score, lesson_complete] }
+      return res.json({
+        sessionId:      `${decoded.uid}_${lessonId || moduleId}_${Date.now()}`,
+        step_index:     0,
+        aiResponseJSON: {
+          teacher_response: fd.text || "",
+          advance_step:     false,
+          errors_detected:  [],
+          praise:           "",
+          correction:       null,
+          student_score:    100,
+          anchor: { type: "letter", content: ALPHABET[lessonIndex] || "A", translation: lessonTopic },
+        },
+        audioBase64:   fd.audio || null,
+        session_stats: fd.session_stats || { total_attempts: 0, correct_attempts: 0 },
+        lesson_topic:  lessonTopic,
+        lesson_index:  lessonIndex,
+        is_a0:         true,
+      });
+    } catch (err) {
+      console.error("[A0 Init Error]", err.message);
+      return res.json({
+        sessionId:      `${decoded.uid}_a0_fallback`,
+        step_index:     0,
+        aiResponseJSON: {
+          teacher_response: `Let\'s learn the letter ${ALPHABET[lessonIndex] || "A"} today! Ready?`,
+          advance_step:     false,
+          errors_detected:  [],
+          anchor: { type: "letter", content: ALPHABET[lessonIndex] || "A", translation: lessonTopic },
+        },
+        audioBase64:   null,
+        lesson_topic:  lessonTopic,
+        lesson_index:  lessonIndex,
+        is_a0:         true,
+      });
+    }
+  }
+
+  // ── A1+ branch ─────────────────────────────────────────────────────────────
+  if (!curriculum[moduleId]) {
+    return res.status(400).json({ error: "Valid moduleId is required" });
+  }
+
   const cefrLevel = userData.assessment?.level || "A1";
-  const accent = userData.preferred_accent || "american";
+  const accent    = userData.preferred_accent || userData.accent_preference || "american";
   const levelGroup = getLevelGroup(cefrLevel);
   const nativeLang = userData.assessment?.detected_native_accent || "unknown";
 
@@ -177,7 +247,7 @@ Return ONLY this JSON:
   }
 
   // Generate TTS Audio
-  const audioBase64 = await generateAudioBase64(aiResJson.teacher_response, accent);
+  const audioBase64 = await generateAudioBase64(aiResJson.teacher_response, accent, nativeLang);
 
   // Initialize Session in Firestore
   const sessionRef = db.collection("users").doc(decoded.uid).collection("sessions").doc();
@@ -212,8 +282,84 @@ Return ONLY this JSON:
   });
 });
 
+// ─── A0 TURN ROUTE ──────────────────────────────────────────────────
+// Handles voice turns for A0 lessons by proxying to Flask /lesson.
+// Accepts: multipart/form-data { audio, step, native_language,
+//          lesson_topic, lesson_index, accent_preference, session_stats }
+// Returns same shape as /turn so LessonPage.jsx needs no changes.
+router.post("/a0-turn", upload.single("audio"), async (req, res) => {
+  const decoded = await verifyToken(req);
+  if (!decoded) return res.status(401).json({ error: "Unauthorized" });
+
+  const {
+    step            = "guided",
+    native_language = "other",
+    lesson_topic    = "The letter A",
+    lesson_index    = "0",
+    accent_preference = "american",
+    session_stats   = "{}",
+  } = req.body;
+
+  // Parse session_stats (sent as JSON string in FormData)
+  let parsedStats = { total_attempts: 0, correct_attempts: 0 };
+  try { parsedStats = JSON.parse(session_stats); } catch {}
+
+  // Convert audio WebM → WAV → base64 for Flask
+  let audioB64 = null;
+  if (req.file && req.file.buffer.length > 0) {
+    try {
+      const wavBuf = await convertWebmToWav(req.file.buffer);
+      audioB64 = wavBuf.toString("base64");
+    } catch (e) {
+      console.error("[A0 Turn] Audio convert error:", e.message);
+    }
+  }
+
+  try {
+    const flaskRes = await axios.post(`${FLASK_URL}/lesson`, {
+      level:             "A0",
+      step,
+      native_language,
+      accent_preference,
+      lesson_topic,
+      is_zero_knowledge: true,
+      history:           [],
+      audio:             audioB64,
+      session_stats:     parsedStats,
+    }, { timeout: 60000 });
+
+    const fd = flaskRes.data;
+    const ALPHABET = ["A","B","C","D","E","F","G","H","I","J","K","L","M",
+                      "N","O","P","Q","R","S","T","U","V","W","X","Y","Z"];
+    const idx = parseInt(lesson_index) || 0;
+
+    // Shape matches /turn so LessonPage.jsx doesn't need branching
+    return res.json({
+      transcript:     "", // Whisper handled by Flask
+      step_index:     step === "feedback" ? 4 : 2,
+      completed:      fd.lesson_complete || false,
+      final_score:    fd.score || null,
+      session_stats:  fd.session_stats,
+      audioBase64:    fd.audio || null,
+      aiResponseJSON: {
+        teacher_response: fd.text || "",
+        advance_step:     fd.lesson_complete || false,
+        errors_detected:  [],
+        praise:           "",
+        correction:       null,
+        student_score:    fd.score || null,
+        anchor: { type: "letter", content: ALPHABET[idx] || "A", translation: lesson_topic },
+      },
+    });
+  } catch (err) {
+    console.error("[A0 Turn Error]", err.message);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 // ─── STEP 2: TURN ROUTE ──────────────────────────────────────────────────────
 router.post("/turn", upload.single("audio"), async (req, res) => {
+
   const decoded = await verifyToken(req);
   if (!decoded) return res.status(401).json({ error: "Unauthorized" });
 
@@ -332,7 +478,7 @@ Return ONLY this JSON:
   }
 
   // Generate TTS Audio
-  const audioBase64 = await generateAudioBase64(aiResJson.teacher_response, accent);
+  const audioBase64 = await generateAudioBase64(aiResJson.teacher_response, accent, nativeLang);
 
   // Update session
   const newTurn = {

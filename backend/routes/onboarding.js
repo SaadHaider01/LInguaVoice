@@ -13,9 +13,9 @@ async function verifyToken(req) {
 }
 
 // ─── TTS Helper ──────────────────────────────────────────────────────────────
-async function generateAudioBase64(text, accent) {
+async function generateAudioBase64(text, accent, native_language = 'english') {
   try {
-    const res = await axios.post(`${FLASK_URL}/synthesize`, { text, accent }, {
+    const res = await axios.post(`${FLASK_URL}/synthesize`, { text, accent, native_language }, {
       responseType: 'arraybuffer',
       timeout: 30000 
     });
@@ -47,7 +47,7 @@ router.get("/intro", async (req, res) => {
     }, { timeout: 60000 });
 
     const messageText = groqRes.data.response.trim();
-    const audioBase64 = await generateAudioBase64(messageText, accent);
+    const audioBase64 = await generateAudioBase64(messageText, accent, userData.native_language || "english");
 
     return res.json({ message: messageText, audio: audioBase64 });
   } catch (err) {
@@ -103,7 +103,8 @@ router.post("/complete", async (req, res) => {
     const effectiveZeroKnow = (is_zero_knowledge === true) || existing.is_zero_knowledge;
     const effectiveCefr    = cefr_level || existing.cefr_level;
 
-    const conditionA = effectiveLang && effectiveLang !== "other_unset";
+    const EXCLUDED_LANGS = ["", "other", "other_unset", "unknown"];
+    const conditionA = effectiveLang && !EXCLUDED_LANGS.includes(effectiveLang);
     const conditionB = effectiveZeroKnow || !!effectiveCefr;
 
     if (conditionA && conditionB) {

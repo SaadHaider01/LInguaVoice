@@ -116,7 +116,7 @@ def generate():
 
 
 # ─── POST /synthesize ────────────────────────────────────────────────────────
-# Accepts: JSON body { "text": "...", "accent": "american" | "british" }
+# Accepts: JSON body { "text": "...", "accent": "american", "native_language": "hindi" }
 # Returns: audio/wav binary stream (in-memory, never saved)
 @app.route("/synthesize", methods=["POST"])
 def synthesize():
@@ -126,6 +126,7 @@ def synthesize():
 
     text   = data.get("text", "").strip()
     accent = data.get("accent", "american")
+    native_language = data.get("native_language", "english")
 
     if not text:
         return jsonify({"error": "Provide 'text' field"}), 400
@@ -134,12 +135,17 @@ def synthesize():
         accent = "american"
 
     try:
-        wav_bytes = synthesize_speech(text, accent)
+        from tts_handler import synthesize_speech
+        audio_bytes = synthesize_speech(text, accent, native_language)
+        
         from flask import Response
         return Response(
-            wav_bytes,
+            audio_bytes,
             mimetype="audio/wav",
-            headers={"Cache-Control": "no-store"},
+            headers={
+                "Content-Length": str(len(audio_bytes)),
+                "Cache-Control": "no-cache"
+            }
         )
     except Exception as e:
         print(f"[TTS] Error: {e}")

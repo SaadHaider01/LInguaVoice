@@ -1,10 +1,9 @@
 // ============================================================
 // frontend/src/pages/OnboardingPage.jsx
 // 3-step onboarding flow:
-//   Step 1: Meet Luna      (unchanged)
-//   Step 2: How It Works   (unchanged)
-//   Step 3: Native Language + Zero Knowledge Detection (NEW)
-// Voice selection removed — now lives in /settings
+//   Step 1: Meet Luna      — static preloaded audio, no backend call
+//   Step 2: How It Works
+//   Step 3: Native Language + Zero Knowledge Detection
 // ============================================================
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
@@ -21,6 +20,14 @@ import "./onboarding.css";
 
 const ONBOARDING_STEPS = 3;
 
+// ── Static intro: served from /public/audio/ by Vite ──────────────
+// Pre-generated via Flask TTS — no backend call, no cold-start delay.
+const LUNA_INTRO_SRC  = "/audio/luna_intro.wav";
+const LUNA_INTRO_TEXT =
+  "Hi! I'm Luna, your personal English tutor. I'm here to listen to you " +
+  "speak and understand your level — then we'll build a learning path made " +
+  "just for you. Let's get started!";
+
 const Waveform = ({ isPlaying }) => (
   <div className={`onboarding-waveform ${isPlaying ? "playing" : ""}`}>
     {[1, 2, 3, 4, 5].map((i) => (
@@ -29,19 +36,14 @@ const Waveform = ({ isPlaying }) => (
   </div>
 );
 
-// Static intro — preloaded WAV in /public/audio/
-// No backend call needed. Vite serves this directly.
-const LUNA_INTRO_AUDIO = "/audio/luna_intro.wav";
-const LUNA_INTRO_TEXT  = "Hi! I\u2019m Luna, your personal English tutor. I\u2019m here to listen to you speak and understand your level \u2014 then we\u2019ll build a learning path made just for you. Let\u2019s get started!";
-
 export default function OnboardingPage() {
   const { currentUser, refreshUserDoc } = useAuth();
   const navigate = useNavigate();
 
-  const [step, setStep] = useState(() => {
-    return parseInt(localStorage.getItem("onboarding_step")) || 1;
-  });
-  const [isPlaying, setIsPlaying] = useState(false);
+  const [step, setStep] = useState(
+    () => parseInt(localStorage.getItem("onboarding_step")) || 1
+  );
+  const [isPlaying,    setIsPlaying]    = useState(false);
   const [showContinue, setShowContinue] = useState(false);
 
   // Step 3 state
@@ -49,19 +51,19 @@ export default function OnboardingPage() {
     () => localStorage.getItem("onboarding_language") || null
   );
   const [isZeroKnowledge, setIsZeroKnowledge] = useState(false);
-  const [showCheckbox, setShowCheckbox] = useState(false);
-  const [savingLanguage, setSavingLanguage] = useState(false);
-  const [savingComplete, setSavingComplete] = useState(false);
+  const [showCheckbox,    setShowCheckbox]     = useState(false);
+  const [savingLanguage,  setSavingLanguage]   = useState(false);
+  const [savingComplete,  setSavingComplete]   = useState(false);
 
-  const audioRef = useRef(null);      // Audio() instance
-  const audioElRef = useRef(null);    // <audio> DOM element for preloading
+  // Hidden <audio> element — loaded by the browser as soon as Step 1 mounts
+  const audioElRef = useRef(null);
 
-  // Persist step to localStorage
+  // Persist current step
   useEffect(() => {
     localStorage.setItem("onboarding_step", step);
   }, [step]);
 
-  // Load Noto font if a language is already selected (resuming session)
+  // Restore font + checkbox if user resumes on Step 3
   useEffect(() => {
     if (selectedLanguage) {
       loadNativeFont(selectedLanguage);
@@ -69,59 +71,57 @@ export default function OnboardingPage() {
     }
   }, []);
 
-  // Try autoplay — returns true if succeeded, false if blocked
-  const tryAutoplay = (base64) => {
-    return new Promise((resolve) => {
-      if (audioRef.current) audioRef.current.pause();
-      const audio = new Audio(`data:audio/wav;base64,${base64}`);
-      audioRef.current = audio;
-      audio.onplay  = () => setIsPlaying(true);
-      audio.onended = () => { setIsPlaying(false); setShowContinue(true); };
-      audio.onerror = () => { setIsPlaying(false); setShowContinue(true); resolve(false); };
-      audio.play()
-        .then(() => resolve(true))
-        .catch(() => { setIsPlaying(false); resolve(false); });
-    });
-  };
+  // When Step 1 mounts, try autoplay once.
+  // Modern browsers only allow autoplay after a user gesture, so this will
+  // usually be blocked — but if it works (e.g. low-restrictions setting) great.
+  // Either way the ▶ Hear Luna button always works because it IS a user gesture.
+  useEffect(() => {
+    if (step !== 1) return;
+    // Small delay so the <audio> element has time to load
+    const t = setTimeout(() => {
+      const el = audioElRef.current;
+      if (!el) return;
+      el.play()
+        .then(() => { /* autoplay succeeded */ })
+        .catch(() => { /* blocked — user will tap the button */ });
+    }, 400);
+    return () => clearTimeout(t);
+  }, [step]);
 
-  // Manual replay triggered by user tap — always works (user gesture)
-  const handlePlayAudio = () => {
-    if (introData.audio) {
-      if (audioRef.current) audioRef.current.pause();
-      const audio = new Audio(`data:audio/wav;base64,${introData.audio}`);
-      audioRef.current = audio;
-      audio.onplay  = () => setIsPlaying(true);
-      audio.onended = () => { setIsPlaying(false); setShowContinue(true); };
-      audio.onerror = () => { setIsPlaying(false); setShowContinue(true); };
-      audio.play().catch((e) => console.error("Play failed:", e));
-    }
-  };
-
-  const playAudio = (base64) => {
-    tryAutoplay(base64);
+  // ── Audio handlers ────────────────────────────────────────────
+  const handlePlay = () => {
+    const el = audioElRef.current;
+    if (!el) return;
+    if (!el.paused) { el.pause(); el.currentTime = 0; }
+    el.currentTime = 0;
+    el.play().catch((e) => console.warn("[Luna audio] play() blocked:", e));
   };
 
   const handleNext = () => {
     if (step < ONBOARDING_STEPS) {
+      // Pause audio when leaving Step 1
+      if (audioElRef.current) {
+        audioElRef.current.pause();
+        audioElRef.current.currentTime = 0;
+      }
       setStep(step + 1);
       setShowContinue(false);
       setIsPlaying(false);
     }
   };
 
-  // Step 3: Language card selected
+  // ── Step 3: language card clicked ────────────────────────────
   const handleLanguageSelect = async (langKey) => {
     if (langKey === selectedLanguage) return;
     setSelectedLanguage(langKey);
-    setIsZeroKnowledge(false); // reset checkbox on language change
+    setIsZeroKnowledge(false);
     localStorage.setItem("onboarding_language", langKey);
     loadNativeFont(langKey);
 
-    // Fade-in checkbox after short delay
     setShowCheckbox(false);
     setTimeout(() => setShowCheckbox(true), 150);
 
-    // Save native_language to Firestore immediately (non-blocking)
+    // Non-blocking: persist native_language to Firestore immediately
     setSavingLanguage(true);
     try {
       const token = await currentUser.getIdToken();
@@ -129,7 +129,7 @@ export default function OnboardingPage() {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+          Authorization:  `Bearer ${token}`,
         },
         body: JSON.stringify({ native_language: langKey }),
       });
@@ -140,46 +140,10 @@ export default function OnboardingPage() {
     }
   };
 
-  // Step 3: Zero-knowledge path — complete onboarding as A0
-  // FIX: No explicit navigate() — let OnboardingGate handle the redirect.
-  // Race condition: navigate() fired before refreshUserDoc() state update settled,
-  // causing OnboardingGate to see stale userDoc and redirect back to /onboarding.
+  // ── Step 3: zero-knowledge path ──────────────────────────────
+  // Do NOT call navigate() here — that races against React state update.
+  // OnboardingGate reacts to refreshUserDoc() and redirects automatically.
   const handleStartLearning = async () => {
-    if (!selectedLanguage) return;
-    setSavingComplete(true);
-    try {
-      const token = await currentUser.getIdToken();
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/onboarding/complete`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          native_language:   selectedLanguage,
-          is_zero_knowledge: true,
-          cefr_level:        "A0",
-        }),
-      });
-      const data = await res.json();
-      localStorage.removeItem("onboarding_step");
-      localStorage.removeItem("onboarding_language");
-      // refreshUserDoc updates React state → OnboardingGate detects
-      // onboarding_complete: true → automatically redirects to /dashboard.
-      // Do NOT call navigate() here — that would race against state update.
-      await refreshUserDoc();
-      // OnboardingGate will redirect now that userDoc is updated.
-    } catch (err) {
-      console.error("Onboarding completion failed", err);
-      setSavingComplete(false);
-    }
-    // Note: setSavingComplete(false) intentionally omitted on success path
-    // because the component will unmount on redirect.
-  };
-
-  // Step 3: Normal diagnostic path
-  // FIX: Same race condition fix — no explicit navigate before state update.
-  const handleContinueToVoiceTest = async () => {
     if (!selectedLanguage) return;
     setSavingComplete(true);
     try {
@@ -188,7 +152,35 @@ export default function OnboardingPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+          Authorization:  `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          native_language:   selectedLanguage,
+          is_zero_knowledge: true,
+          cefr_level:        "A0",
+        }),
+      });
+      localStorage.removeItem("onboarding_step");
+      localStorage.removeItem("onboarding_language");
+      // State update → OnboardingGate sees onboarding_complete:true → /dashboard
+      await refreshUserDoc();
+    } catch (err) {
+      console.error("Onboarding completion failed", err);
+      setSavingComplete(false); // only reset on error; component unmounts on success
+    }
+  };
+
+  // ── Step 3: normal diagnostic path ───────────────────────────
+  const handleContinueToDiagnostic = async () => {
+    if (!selectedLanguage) return;
+    setSavingComplete(true);
+    try {
+      const token = await currentUser.getIdToken();
+      await fetch(`${import.meta.env.VITE_API_URL}/api/onboarding/complete`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization:  `Bearer ${token}`,
         },
         body: JSON.stringify({
           native_language:   selectedLanguage,
@@ -197,9 +189,8 @@ export default function OnboardingPage() {
       });
       localStorage.removeItem("onboarding_step");
       localStorage.removeItem("onboarding_language");
-      // Diagnostic path: onboarding_complete won't be set by this call
-      // (Condition B not met yet). Navigate directly — OnboardingGate
-      // will pass through to /diagnostic since complete=false is expected.
+      // Condition B not met yet → onboarding_complete still false.
+      // Navigate directly — OnboardingGate passes through to /diagnostic.
       navigate("/diagnostic", { replace: true });
     } catch (err) {
       console.error("Failed to proceed to diagnostic", err);
@@ -211,8 +202,21 @@ export default function OnboardingPage() {
     ? (A0_BUTTON_LABELS.start_learning[selectedLanguage] || "Start Learning")
     : "Start Learning";
 
+  // ── Render ───────────────────────────────────────────────────
   return (
     <div className="onboarding-page">
+      {/* Hidden audio element — preloaded by browser immediately */}
+      <audio
+        ref={audioElRef}
+        src={LUNA_INTRO_SRC}
+        preload="auto"
+        onPlay={() => setIsPlaying(true)}
+        onEnded={() => { setIsPlaying(false); setShowContinue(true); }}
+        onPause={() => setIsPlaying(false)}
+        onError={() => { setIsPlaying(false); setShowContinue(true); }}
+        style={{ display: "none" }}
+      />
+
       {/* Progress dots */}
       <div className="onboarding-progress">
         {[1, 2, 3].map((i) => (
@@ -224,48 +228,45 @@ export default function OnboardingPage() {
       </div>
 
       <div className="onboarding-container">
-        {/* ── Step 1: Meet Luna (unchanged) ───────────────────── */}
+
+        {/* ── Step 1: Meet Luna ───────────────────────────────── */}
         {step === 1 && (
           <div className="onboarding-step step-1 fade-up">
             <div className="luna-avatar">
               <div className="avatar-circle">L</div>
-              <div className="pulse-ring"></div>
+              <div className="pulse-ring" />
             </div>
+
             <h2>Hi, I'm Luna</h2>
-            {introData.message && (
-              <div className="chat-bubble">{introData.message}</div>
-            )}
+
+            <div className="chat-bubble">{LUNA_INTRO_TEXT}</div>
 
             {/* Waveform + play button */}
             <div className="step1-audio-row">
               <Waveform isPlaying={isPlaying} />
-              {introData.audio && (
-                <button
-                  className="luna-play-btn"
-                  onClick={handlePlayAudio}
-                  title="Play Luna's message"
-                  aria-label="Play Luna's voice"
-                  disabled={isPlaying}
-                >
-                  {isPlaying ? "🔈" : "▶ Hear Luna"}
-                </button>
-              )}
+              <button
+                id="luna-play-btn"
+                className="luna-play-btn"
+                onClick={handlePlay}
+                disabled={isPlaying}
+                title="Play Luna's voice"
+                aria-label="Hear Luna speak"
+              >
+                {isPlaying ? "🔈 Playing..." : "▶ Hear Luna"}
+              </button>
             </div>
 
-            {/* Loading indicator while fetching intro */}
-            {loading && (
-              <p className="intro-loading">Luna is preparing her message...</p>
-            )}
-
-            {showContinue && (
-              <button className="onboarding-btn bottom-fixed" onClick={handleNext}>
-                Continue
-              </button>
-            )}
+            {/* Continue always visible — user can skip audio */}
+            <button
+              className="onboarding-btn bottom-fixed"
+              onClick={handleNext}
+            >
+              Continue
+            </button>
           </div>
         )}
 
-        {/* ── Step 2: How It Works (unchanged) ────────────────── */}
+        {/* ── Step 2: How It Works ─────────────────────────────── */}
         {step === 2 && (
           <div className="onboarding-step step-2 fade-up">
             <h2>Here is how Luna teaches you</h2>
@@ -298,7 +299,7 @@ export default function OnboardingPage() {
           </div>
         )}
 
-        {/* ── Step 3: Native Language + Zero Knowledge (NEW) ─── */}
+        {/* ── Step 3: Native Language + Zero Knowledge ─────────── */}
         {step === 3 && (
           <div className="onboarding-step step-3 fade-up">
             <h2>What's your first language?</h2>
@@ -334,7 +335,7 @@ export default function OnboardingPage() {
 
             {/* Zero-knowledge checkbox — fades in after language selected */}
             {showCheckbox && selectedLanguage && (
-              <div className={`zero-knowledge-section fade-in`}>
+              <div className="zero-knowledge-section fade-in">
                 <label className="zk-checkbox-label">
                   <div className="zk-checkbox-wrapper">
                     <input
@@ -351,23 +352,23 @@ export default function OnboardingPage() {
                     className={`zk-label-text ${isRTL(selectedLanguage) ? "rtl-text" : ""}`}
                     dir={isRTL(selectedLanguage) ? "rtl" : undefined}
                   >
-                    {ZERO_KNOWLEDGE_LABELS[selectedLanguage] || ZERO_KNOWLEDGE_LABELS.other}
+                    {ZERO_KNOWLEDGE_LABELS[selectedLanguage] || ZERO_KNOWLEDGE_LABELS.other_lang}
                   </span>
                 </label>
 
-                {/* Confirmation text when checkbox is ticked */}
                 {isZeroKnowledge && (
                   <p
                     className={`zk-confirmation fade-in ${isRTL(selectedLanguage) ? "rtl-text" : ""}`}
                     dir={isRTL(selectedLanguage) ? "rtl" : undefined}
                   >
-                    {ZERO_KNOWLEDGE_CONFIRMATIONS[selectedLanguage] || ZERO_KNOWLEDGE_CONFIRMATIONS.other}
+                    {ZERO_KNOWLEDGE_CONFIRMATIONS[selectedLanguage] ||
+                      ZERO_KNOWLEDGE_CONFIRMATIONS.other_lang}
                   </p>
                 )}
               </div>
             )}
 
-            {/* Action button — conditional on zero-knowledge */}
+            {/* CTA button — changes based on zero-knowledge toggle */}
             {selectedLanguage && (
               <div className="onboarding-actions bottom-fixed">
                 {isZeroKnowledge ? (
@@ -381,7 +382,7 @@ export default function OnboardingPage() {
                 ) : (
                   <button
                     className="onboarding-btn"
-                    onClick={handleContinueToVoiceTest}
+                    onClick={handleContinueToDiagnostic}
                     disabled={savingComplete}
                   >
                     {savingComplete ? "Loading..." : "Continue to Voice Test"}
