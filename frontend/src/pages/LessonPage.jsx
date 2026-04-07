@@ -281,17 +281,14 @@ export default function LessonPage() {
         setFinalScore(score);
         if (data.recap) {
           setRecapData(data.recap);
-        } else if (isA0) {
-          // A0: Flask doesn't send a recap object — build one from what we have
+        } else if (isA0 && data.aiResponseJSON && currentAnchor.content) {
           const grade = score >= 90 ? "A" : score >= 75 ? "B" : score >= 60 ? "C" : "D";
           setRecapData({
             overall_grade:   grade,
             summary:         `Great job! You practiced ${lessonTopic} today. Keep it up!`,
-            words_practiced: currentAnchor.type !== "none"
-              ? [{ word: currentAnchor.content, definition: currentAnchor.translation }]
-              : [],
+            words_practiced: [{ word: data.aiResponseJSON.current_letter || currentAnchor.content, definition: data.aiResponseJSON.anchor?.translation || "Letter" }],
             top_strength:    "You listened carefully and tried every time.",
-            focus_for_next:  `Practice saying "${currentAnchor.content || "today's letter"}" until it feels natural.`,
+            focus_for_next:  `Practice saying "${data.aiResponseJSON.current_letter || currentAnchor.content}" until it feels natural.`,
           });
         }
         if (data.xp_payload) window.dispatchEvent(new CustomEvent("gamification_pushed", { detail: data.xp_payload }));
@@ -302,6 +299,80 @@ export default function LessonPage() {
       console.error(err);
       setIsProcessing(false);
       alert("Connection error. Please try again.");
+    }
+  };
+
+  const handleSkipLetter = async () => {
+    setIsProcessing(true);
+    const formData = new FormData();
+    formData.append("sessionId", sessionId);
+
+    if (isA0) {
+      const stepMap = ["warmup", "input", "guided", "free", "feedback"];
+      formData.append("step", stepMap[currentStep] || "guided");
+      formData.append("native_language", userDoc?.native_language || "other");
+      formData.append("lesson_topic", lessonTopic);
+      formData.append("lesson_index", lessonIndex);
+      formData.append("accent_preference", userDoc?.accent_preference || "american");
+      formData.append("session_stats", JSON.stringify(sessionStats));
+      formData.append("force_advance", "true");
+    }
+
+    try {
+      const endpoint = "/api/lesson/a0-turn";
+      const token = await currentUser.getIdToken();
+      const res = await fetch(`${import.meta.env.VITE_API_URL}${endpoint}`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData
+      });
+      
+      if (!res.ok) throw new Error("Turn failed");
+      const data = await res.json();
+      
+      if (isA0 && data.session_stats) {
+        setSessionStats(data.session_stats);
+      }
+
+      setConversation(prev => [
+        ...prev, 
+        { role: "student", text: "(Skipped)", feedback: data.aiResponseJSON },
+        { role: "teacher", text: data.aiResponseJSON?.teacher_response || "" }
+      ]);
+      
+      if (data.aiResponseJSON?.anchor?.type) {
+         setCurrentAnchor(data.aiResponseJSON.anchor);
+      }
+      
+      setCurrentStep(data.step_index);
+      setIsProcessing(false);
+
+      if (data.audioBase64) {
+        playAudio(data.audioBase64);
+      }
+
+      if (data.completed) {
+        setCompleted(true);
+        const score = data.final_score ?? data.aiResponseJSON?.student_score ?? 75;
+        setFinalScore(score);
+        if (data.recap) {
+          setRecapData(data.recap);
+        } else if (isA0) {
+          const grade = score >= 90 ? "A" : score >= 75 ? "B" : score >= 60 ? "C" : "D";
+          setRecapData({
+            overall_grade:   grade,
+            summary:         `Great job! You practiced lesson today. Keep it up!`,
+            words_practiced: [{ word: data.aiResponseJSON?.current_letter || "Lesson", definition: "Complete" }],
+            top_strength:    "You listened carefully and tried.",
+            focus_for_next:  `Patience and practice is key.`,
+          });
+        }
+        if (data.xp_payload) window.dispatchEvent(new CustomEvent("gamification_pushed", { detail: data.xp_payload }));
+        refreshUserDoc();
+      }
+    } catch (err) {
+      setError(err.message);
+      setIsProcessing(false);
     }
   };
 
@@ -538,18 +609,30 @@ export default function LessonPage() {
         )}
       
         {!isInputStep && !isPlaying && !isProcessing && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
-            <button 
-              className={`record-btn ${isRecording ? "recording" : ""}`}
-              onMouseDown={startRecording}
-              onMouseUp={stopRecording}
-              onTouchStart={startRecording}
-              onTouchEnd={stopRecording}
-              title="Hold to speak"
-            >
-              🎙️
-            </button>
-            {recentScore !== null && <PronunciationBadge score={recentScore} />}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
+              <button 
+                className={`record-btn ${isRecording ? "recording" : ""}`}
+                onMouseDown={startRecording}
+                onMouseUp={stopRecording}
+                onTouchStart={startRecording}
+                onTouchEnd={stopRecording}
+                title="Hold to speak"
+              >
+                🎙️
+              </button>
+              {recentScore !== null && <PronunciationBadge score={recentScore} />}
+            </div>
+            
+            {isA0 && (
+              <button 
+                className="skip-btn skip-btn-subtle"
+                onClick={handleSkipLetter}
+                style={{fontSize: '0.8rem', color: '#888', background: 'transparent', border: 'none', cursor: 'pointer', marginTop: '10px'}}
+              >
+                Skip this letter &rarr;
+              </button>
+            )}
           </div>
         )}
         {(isPlaying || isProcessing || isInputStep) && (

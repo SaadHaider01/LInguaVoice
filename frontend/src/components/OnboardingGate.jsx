@@ -53,16 +53,20 @@ export default function OnboardingGate({ children }) {
 
   // -- REDIRECT LOGIC (The Funnel) --
 
-  // 1. If basic onboarding not done -> force /onboarding
-  if (!finishedOnboardingPage && pathname !== "/onboarding") {
+  // 1. If basic onboarding not done (no language) -> force /onboarding
+  if (!hasLanguage && pathname !== "/onboarding") {
     return <Navigate to="/onboarding" replace />;
   }
 
-  // 2. If finished onboarding page but no level -> force /diagnostic (unless A0)
-  if (finishedOnboardingPage && !hasLevel && userDoc.is_zero_knowledge !== true) {
-     if (pathname !== "/diagnostic") {
-       return <Navigate to="/diagnostic" replace />;
-     }
+  // 2. If has language but no level (Diagnostic needed) -> stays on /onboarding (Step 3)
+  //    OR if they manually visit /diagnostic, redirect them to /onboarding (unified flow)
+  if (hasLanguage && !hasLevel && userDoc.is_zero_knowledge !== true) {
+    if (pathname === "/diagnostic") {
+      return <Navigate to="/onboarding" replace />;
+    }
+    if (pathname !== "/onboarding") {
+      return <Navigate to="/onboarding" replace />;
+    }
   }
 
   // 3. If has level but no accent selected -> force /accent

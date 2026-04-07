@@ -260,10 +260,34 @@ RULES — follow strictly:
 - Be warm and human — like a beloved teacher
 """
         # Step-specific additions
+        current_letter = lesson_topic.split()[-1] if lesson_topic else "A"
         step_additions = {
             "warmup": f"Greet the student warmly in {native_language}. State today's lesson in one sentence. Ask if ready with a yes/no question. Max 2 sentences.",
             "teaching": f"Teach {lesson_topic}. Explain in {native_language}. Relate to closest {native_language} sound. Show English version in quotes. Invite student to try. Max 3 sentences.",
-            "guided": f"Student said: '{transcript}'\nIf correct: celebrate specifically, say what was good, move on.\nIf close: praise first, demonstrate correct sound again gently.\nIf unclear: encourage warmly, demonstrate again, ask to retry.\nNever say wrong. Max 2 sentences.",
+            "guided": f"""You are teaching the letter {current_letter} to a beginner.
+The student just said: '{transcript}'
+
+YOUR JOB: Determine if the student attempted to say the letter {current_letter} or its sound.
+
+ADVANCE RULES (be generous):
+- If transcript contains the letter {current_letter} anywhere -> advance_step: true
+- If transcript contains the sound of {current_letter} -> advance_step: true
+- If transcript is empty or completely unrelated -> advance_step: false, try again
+
+DO NOT require perfect pronunciation. A beginner attempt is enough to advance. Praise effort.
+
+If advancing, say something like: 'Bahut accha! Ab hum agla step dekhenge'
+If not advancing: 'Koshish karo - say: Aaa'
+
+Return ONLY this JSON:
+{{
+  "teacher_response": "your response here",
+  "advance_step": true,
+  "errors_detected": [],
+  "praise": "what they did well",
+  "correction": null,
+  "student_score": 75
+}}""",
             "freetalk": f"Have a simple exchange about what was just learned. Ask one question answerable using only today's sounds. Stay in {native_language} with English sounds in quotes only. Max 1 question.",
             "feedback": f"Summarize today in {native_language}. Name 2 specific things the student did well (be concrete). Give 1 simple home practice task (repeating sounds only — no writing). Encourage warmly. Max 4 sentences.",
         }
@@ -306,7 +330,13 @@ Student said: "{transcript}"
         return jsonify({"error": "GROQ_API_KEY not configured"}), 500
 
     response_text = ""
+    parsed_json = {}
+    is_json = use_a0_mode and step == "guided"
+
     try:
+        if is_json:
+            system_prompt += "\n\nIMPORTANT: YOU MUST RETURN ONLY VALID JSON. NO OTHER TEXT."
+            
         client = Groq(api_key=groq_api_key)
         messages = [{"role": "system", "content": system_prompt}]
         if transcript:
@@ -319,6 +349,19 @@ Student said: "{transcript}"
             temperature=0.7,
         )
         response_text = completion.choices[0].message.content.strip()
+        
+        if is_json:
+            try:
+                import re
+                json_match = re.search(r'\{.*\}', response_text.replace('\n', ''))
+                if json_match:
+                    parsed_json = json.loads(json_match.group(0))
+                else:
+                    parsed_json = json.loads(response_text)
+                response_text = parsed_json.get("teacher_response", response_text)
+            except json.JSONDecodeError:
+                parsed_json = {"advance_step": False, "student_score": 50}
+                
     except Exception as e:
         print(f"[/lesson Groq] Error: {e}")
         response_text = "I'm here with you. Let's try that again." if use_a0_mode else "Let's try that again. You're doing great!"
@@ -326,11 +369,14 @@ Student said: "{transcript}"
     # ── Heuristic: was guided attempt correct? ─────────────────────
     # Simple keyword check — if response contains celebration language, count as correct
     if step == "guided":
-        celebration_keywords = ["great", "perfect", "excellent", "wonderful", "correct",
-                                 "well done", "amazing", "fantastic", "शानदार", "बहुत अच्छे",
-                                 "زبردست", "চমৎকার", "அருமை", "అద్భుతం"]
-        if any(kw.lower() in response_text.lower() for kw in celebration_keywords):
-            correct_attempts += 1
+        if is_json and parsed_json.get("advance_step", False):
+             correct_attempts += 1
+        else:
+            celebration_keywords = ["great", "perfect", "excellent", "wonderful", "correct",
+                                     "well done", "amazing", "fantastic", "शानदार", "बहुत अच्छे",
+                                     "زبردست", "চমৎকার", "அருமை", "అద్భుతం", "bahut accha"]
+            if any(kw.lower() in response_text.lower() for kw in celebration_keywords):
+                correct_attempts += 1
 
     # ── Score calculation on feedback step ────────────────────────
     score = None
@@ -351,20 +397,23 @@ Student said: "{transcript}"
     except Exception as e:
         print(f"[/lesson TTS] Error: {e}")
 
-    # ── Build response ────────────────────────────────────────────
+    session_stats["total_attempts"] = total_attempts
+    session_stats["correct_attempts"] = correct_attempts
+    
     response_payload = {
-        "text":  response_text,
+        "text": response_text,
         "audio": audio_out_b64,
-        "step":  step,
-        "session_stats": {
-            "total_attempts":   total_attempts,
-            "correct_attempts": correct_attempts,
-        },
+        "step": step,
+        "session_stats": session_stats
     }
-
-    if lesson_complete:
-        response_payload["score"]           = score
-        response_payload["lesson_complete"] = True
+    
+    if is_json:
+        response_payload["advance_step"] = parsed_json.get("advance_step", False)
+        response_payload["student_score"] = parsed_json.get("student_score", 75)
+    
+    if score is not None:
+        response_payload["score"] = score
+        response_payload["lesson_complete"] = lesson_complete
 
     return jsonify(response_payload)
 

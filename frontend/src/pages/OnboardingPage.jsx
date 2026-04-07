@@ -16,9 +16,19 @@ import {
   A0_BUTTON_LABELS,
 } from "../config/languages";
 import { loadNativeFont, isRTL } from "../utils/fontLoader";
+import { guessNativeLanguage }     from "../utils/languageDetector";
 import "./onboarding.css";
 
 const ONBOARDING_STEPS = 3;
+const MAX_SECONDS = 180;
+const MIN_SECONDS = 10;
+
+const SPEAKING_PROMPTS = [
+  "Tell us your name and where you're from. What do you do for work or study?",
+  "Describe your daily routine. What does a typical day look like for you?",
+  "What are your hobbies or interests? What do you enjoy doing in your free time?",
+  "Talk about a place you like — your city, a favourite spot, or somewhere you've visited.",
+];
 
 // ── Static intro: served from /public/audio/ by Vite ──────────────
 // Pre-generated via Flask TTS — no backend call, no cold-start delay.
@@ -36,8 +46,29 @@ const Waveform = ({ isPlaying }) => (
   </div>
 );
 
+function fmt(sec) {
+  const m = String(Math.floor(sec / 60)).padStart(2, "0");
+  const s = String(sec % 60).padStart(2, "0");
+  return `${m}:${s}`;
+}
+
+const MicIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+    <path d="M19 10a7 7 0 0 1-14 0"/>
+    <line x1="12" y1="19" x2="12" y2="23"/>
+    <line x1="8"  y1="23" x2="16" y2="23"/>
+  </svg>
+);
+
+const StopIcon = () => (
+  <svg viewBox="0 0 24 24" fill="currentColor">
+    <rect x="6" y="6" width="12" height="12" rx="2"/>
+  </svg>
+);
+
 export default function OnboardingPage() {
-  const { currentUser, refreshUserDoc } = useAuth();
+  const { currentUser, userDoc, refreshUserDoc } = useAuth();
   const navigate = useNavigate();
 
   const [step, setStep] = useState(
@@ -54,6 +85,27 @@ export default function OnboardingPage() {
   const [showCheckbox,    setShowCheckbox]     = useState(false);
   const [savingLanguage,  setSavingLanguage]   = useState(false);
   const [savingComplete,  setSavingComplete]   = useState(false);
+  const [showLanguageGrid, setShowLanguageGrid] = useState(false);
+
+  // Diagnostic sub-states (within step 3)
+  const [diagPhase,   setDiagPhase]   = useState("auto_detect"); // auto_detect | recording | analyzing | results | error
+  const [timeLeft,    setTimeLeft]    = useState(MAX_SECONDS);
+  const [elapsed,     setElapsed]     = useState(0);
+  const [assessment,  setAssessment]  = useState(null);
+  const [errMsg,      setErrMsg]      = useState("");
+  const [analyzeStep, setAnalyzeStep] = useState(0); 
+  const [promptIdx,   setPromptIdx]   = useState(0);
+
+  // Refs for MediaRecorder
+  const mediaRecorder  = useRef(null);
+  const audioChunks    = useRef([]);
+  const timerRef       = useRef(null);
+  const promptTimer    = useRef(null);
+  const streamRef      = useRef(null);
+  const audioCtxRef    = useRef(null);
+  const analyserRef    = useRef(null);
+  const animFrameRef   = useRef(null);
+  const canvasRef      = useRef(null);
 
   // Hidden <audio> element — loaded by the browser as soon as Step 1 mounts
   const audioElRef = useRef(null);
@@ -71,22 +123,26 @@ export default function OnboardingPage() {
     }
   }, []);
 
-  // When Step 1 mounts, try autoplay once.
-  // Modern browsers only allow autoplay after a user gesture, so this will
-  // usually be blocked — but if it works (e.g. low-restrictions setting) great.
-  // Either way the ▶ Hear Luna button always works because it IS a user gesture.
+  // ─── Step 3 Auto-detection ──────────────────────────────
   useEffect(() => {
-    if (step !== 1) return;
-    // Small delay so the <audio> element has time to load
-    const t = setTimeout(() => {
-      const el = audioElRef.current;
-      if (!el) return;
-      el.play()
-        .then(() => { /* autoplay succeeded */ })
-        .catch(() => { /* blocked — user will tap the button */ });
-    }, 400);
-    return () => clearTimeout(t);
+    if (step === 3 && !selectedLanguage) {
+      const guessed = guessNativeLanguage();
+      handleLanguageSelect(guessed);
+    }
   }, [step]);
+
+  // ─── Cleanup on unmount ───────────────────────────────────
+  useEffect(() => {
+    return () => {
+      clearInterval(timerRef.current);
+      clearInterval(promptTimer.current);
+      cancelAnimationFrame(animFrameRef.current);
+      streamRef.current?.getTracks().forEach(t => t.stop());
+      audioCtxRef.current?.close();
+    };
+  }, []);
+
+  // When Step 1 mounts, try autoplay once.
 
   // ── Audio handlers ────────────────────────────────────────────
   const handlePlay = () => {
@@ -109,6 +165,152 @@ export default function OnboardingPage() {
       setIsPlaying(false);
     }
   };
+
+  // ─── Waveform animation ────────────────────────────────────
+  const drawWaveform = useCallback(() => {
+    const canvas   = canvasRef.current;
+    const analyser = analyserRef.current;
+    if (!canvas || !analyser) return;
+
+    const ctx    = canvas.getContext("2d");
+    const W      = canvas.width;
+    const H      = canvas.height;
+    const data   = new Uint8Array(analyser.frequencyBinCount);
+    analyser.getByteTimeDomainData(data);
+
+    ctx.clearRect(0, 0, W, H);
+
+    const barCount = 48;
+    const step     = Math.floor(data.length / barCount);
+    const barW     = W / barCount;
+
+    for (let i = 0; i < barCount; i++) {
+      const v       = data[i * step] / 128.0 - 1;
+      const barH    = Math.max(2, Math.abs(v) * (H * 0.9));
+      const x       = i * barW + barW * 0.1;
+      const opacity = 0.5 + Math.abs(v) * 0.5;
+
+      ctx.fillStyle = `rgba(168,85,247,${opacity})`;
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(x, (H - barH) / 2, barW * 0.8, barH, 2);
+      else ctx.rect(x, (H - barH) / 2, barW * 0.8, barH);
+      ctx.fill();
+    }
+
+    animFrameRef.current = requestAnimationFrame(drawWaveform);
+  }, []);
+
+  // ─── Start recording ───────────────────────────────────────
+  async function startRecording() {
+    setErrMsg("");
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 128;
+      audioCtx.createMediaStreamSource(stream).connect(analyser);
+      audioCtxRef.current = audioCtx;
+      analyserRef.current = analyser;
+
+      const mimeType = MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "audio/ogg";
+      const recorder = new MediaRecorder(stream, { mimeType });
+      mediaRecorder.current = recorder;
+      audioChunks.current   = [];
+
+      recorder.ondataavailable = e => {
+        if (e.data.size > 0) audioChunks.current.push(e.data);
+      };
+
+      recorder.start(250);
+      setDiagPhase("recording");
+      setElapsed(0);
+      setTimeLeft(MAX_SECONDS);
+      setPromptIdx(0);
+
+      timerRef.current = setInterval(() => {
+        setTimeLeft(prev => {
+          if (prev <= 1) {
+            clearInterval(timerRef.current);
+            stopAndAnalyze();
+            return 0;
+          }
+          return prev - 1;
+        });
+        setElapsed(prev => prev + 1);
+      }, 1000);
+
+      promptTimer.current = setInterval(() => {
+        setPromptIdx(prev => (prev + 1) % SPEAKING_PROMPTS.length);
+      }, 45_000);
+
+      drawWaveform();
+    } catch (err) {
+      setErrMsg(err.name === "NotAllowedError" ? "Microphone access denied." : err.message);
+      setDiagPhase("error");
+    }
+  }
+
+  // ─── Stop and analyze ──────────────────────────────────────
+  async function stopAndAnalyze() {
+    clearInterval(timerRef.current);
+    clearInterval(promptTimer.current);
+    cancelAnimationFrame(animFrameRef.current);
+    streamRef.current?.getTracks().forEach(t => t.stop());
+    audioCtxRef.current?.close();
+
+    const recorder = mediaRecorder.current;
+    if (!recorder || recorder.state === "inactive") return;
+
+    recorder.onstop = async () => {
+      const mimeType = audioChunks.current[0]?.type || "audio/webm";
+      const blob     = new Blob(audioChunks.current, { type: mimeType });
+      await sendDiagnosticToBackend(blob, mimeType);
+    };
+    recorder.stop();
+    setDiagPhase("analyzing");
+    setAnalyzeStep(1);
+  }
+
+  // ─── POST audio to backend ─────────────────────────────────
+  async function sendDiagnosticToBackend(blob, mimeType) {
+    try {
+      const token = await currentUser.getIdToken();
+      const ext   = mimeType.includes("ogg") ? ".ogg" : ".webm";
+      const formData = new FormData();
+      formData.append("audio", blob, `recording${ext}`);
+
+      setAnalyzeStep(1); 
+
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/diagnostic`, {
+        method:  "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body:    formData,
+      });
+
+      setAnalyzeStep(2); 
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `Server error ${res.status}`);
+      }
+
+      const data = await res.json();
+      setAnalyzeStep(3);
+
+      await new Promise(r => setTimeout(r, 800));
+      setAssessment(data.assessment);
+      setDiagPhase("results");
+
+      // Sync user data since cefr_level was updated on backend
+      await refreshUserDoc(); 
+      
+    } catch (err) {
+      setErrMsg(err.message);
+      setDiagPhase("error");
+    }
+  }
 
   // ── Step 3: language card clicked ────────────────────────────
   const handleLanguageSelect = async (langKey) => {
@@ -140,9 +342,7 @@ export default function OnboardingPage() {
     }
   };
 
-  // ── Step 3: zero-knowledge path ──────────────────────────────
-  // Do NOT call navigate() here — that races against React state update.
-  // OnboardingGate reacts to refreshUserDoc() and redirects automatically.
+  // ── Step 3: zero-knowledge path (A0) ────────────────────────
   const handleStartLearning = async () => {
     if (!selectedLanguage) return;
     setSavingComplete(true);
@@ -162,41 +362,157 @@ export default function OnboardingPage() {
       });
       localStorage.removeItem("onboarding_step");
       localStorage.removeItem("onboarding_language");
-      // State update → OnboardingGate sees onboarding_complete:true → /dashboard
+      
+      // Update global user state then navigate to /dashboard
       await refreshUserDoc();
+      navigate("/dashboard", { replace: true });
     } catch (err) {
       console.error("Onboarding completion failed", err);
-      setSavingComplete(false); // only reset on error; component unmounts on success
-    }
-  };
-
-  // ── Step 3: normal diagnostic path ───────────────────────────
-  const handleContinueToDiagnostic = async () => {
-    if (!selectedLanguage) return;
-    setSavingComplete(true);
-    try {
-      const token = await currentUser.getIdToken();
-      await fetch(`${import.meta.env.VITE_API_URL}/api/onboarding/complete`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization:  `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          native_language:   selectedLanguage,
-          is_zero_knowledge: false,
-        }),
-      });
-      localStorage.removeItem("onboarding_step");
-      localStorage.removeItem("onboarding_language");
-      // Condition B not met yet → onboarding_complete still false.
-      // Navigate directly — OnboardingGate passes through to /diagnostic.
-      navigate("/diagnostic", { replace: true });
-    } catch (err) {
-      console.error("Failed to proceed to diagnostic", err);
       setSavingComplete(false);
     }
   };
+
+  // ── Step 3 Render Helpers ──────────────────────────────────
+  function renderStep3AutoDetect() {
+    const lang = LANGUAGES.find(l => l.key === selectedLanguage);
+    if (!lang) return <div className="analyzing-spinner" />;
+
+    return (
+      <div className="step-3-detect fade-up">
+        <h2>What's your first language?</h2>
+        <div className="detected-card">
+          <div className="detected-info">
+            <span className="lang-flag">{lang.flag}</span>
+            <div className="lang-text">
+              <span className="lang-english">{lang.english}</span>
+              <span className={`lang-native ${isRTL(lang.key) ? "rtl-text" : ""}`} dir={isRTL(lang.key) ? "rtl" : undefined}>
+                {lang.native}
+              </span>
+            </div>
+          </div>
+          <button className="change-lang-link" onClick={() => setShowLanguageGrid(true)}>
+            Not {lang.english}? Change
+          </button>
+        </div>
+
+        {showLanguageGrid && (
+          <div className="language-grid mini fade-in">
+            {LANGUAGES.map((l) => (
+              <button
+                key={l.key}
+                className={`language-card mini ${selectedLanguage === l.key ? "selected" : ""}`}
+                onClick={() => { handleLanguageSelect(l.key); setShowLanguageGrid(false); }}
+              >
+                <span>{l.flag} {l.english}</span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        <div className="zero-knowledge-section premium">
+          <label className="zk-checkbox-label">
+            <div className="zk-checkbox-wrapper">
+              <input
+                type="checkbox"
+                className="zk-checkbox-input"
+                checked={isZeroKnowledge}
+                onChange={(e) => setIsZeroKnowledge(e.target.checked)}
+              />
+              <div className={`zk-custom-checkbox ${isZeroKnowledge ? "checked" : ""}`}>
+                {isZeroKnowledge && <span className="zk-check">✓</span>}
+              </div>
+            </div>
+            <span className={`zk-label-text ${isRTL(lang.key) ? "rtl-text" : ""}`} dir={isRTL(lang.key) ? "rtl" : undefined}>
+              {ZERO_KNOWLEDGE_LABELS[lang.key] || ZERO_KNOWLEDGE_LABELS.other_lang}
+            </span>
+          </label>
+        </div>
+
+        <div className="step-3-actions">
+          {isZeroKnowledge ? (
+            <button className="onboarding-btn" onClick={handleStartLearning} disabled={savingComplete}>
+              {savingComplete ? "Starting..." : (A0_BUTTON_LABELS.start_learning[lang.key] || "Start Learning")} →
+            </button>
+          ) : (
+            <button className="onboarding-btn" onClick={startRecording}>
+              Start Voice Test →
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  function renderStep3Recording() {
+    const canStop = elapsed >= MIN_SECONDS;
+    return (
+      <div className="step-3-diag recording fade-in">
+        <h2>Recording Voice Test...</h2>
+        <p className="diag-instruction">Speak naturally about anything. Luna is listening.</p>
+        
+        <div className="prompt-card mini">
+          <span>💬</span> {SPEAKING_PROMPTS[promptIdx]}
+        </div>
+
+        <div className="waveform-outer">
+          <canvas ref={canvasRef} className="waveform-canvas" width={400} height={60} />
+        </div>
+
+        <div className="diag-timer-row">
+          <span className={`diag-time ${timeLeft < 30 ? "urgent" : ""}`}>{fmt(timeLeft)}</span>
+        </div>
+
+        <div className="mic-wrap onboarding-mic">
+          <button className="mic-btn recording" onClick={stopAndAnalyze}>
+            <StopIcon />
+          </button>
+          <span className="mic-label">
+            {canStop ? "Stop & Analyse" : `Speak for ${MIN_SECONDS - elapsed}s more...`}
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  function renderStep3Analyzing() {
+    const steps = [
+      { label: "Transcribing speech...",    id: 1 },
+      { label: "Analysing your level...",   id: 2 },
+      { label: "Ready!",                    id: 3 },
+    ];
+    return (
+      <div className="step-3-diag analyzing fade-in">
+        <h2>Luna is thinking...</h2>
+        <div className="analyzing-wrap mini">
+          <div className="analyzing-spinner" />
+          <div className="analyzing-steps">
+            {steps.map(s => (
+              <div key={s.id} className={`step-item ${analyzeStep === s.id ? "active" : analyzeStep > s.id ? "done" : ""}`}>
+                <span className="step-dot" /> {s.label}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  function renderStep3Results() {
+    if (!assessment) return null;
+    return (
+      <div className="step-3-diag results fade-up">
+        <h2>Assessment Complete!</h2>
+        <div className="onboarding-result-card">
+          <div className="res-level">{assessment.level}</div>
+          <p className="res-summary">{assessment.summary}</p>
+          <div className="res-accent">Native Accent: {assessment.detected_native_accent || "detected"}</div>
+        </div>
+        <button className="onboarding-btn" onClick={() => navigate("/dashboard", { replace: true })}>
+          Enter Dashboard →
+        </button>
+      </div>
+    );
+  }
 
   const startLearningLabel = selectedLanguage
     ? (A0_BUTTON_LABELS.start_learning[selectedLanguage] || "Start Learning")
@@ -299,95 +615,20 @@ export default function OnboardingPage() {
           </div>
         )}
 
-        {/* ── Step 3: Native Language + Zero Knowledge ─────────── */}
+        {/* ── Step 3: Combined Language & Level Check ────────────────── */}
         {step === 3 && (
           <div className="onboarding-step step-3 fade-up">
-            <h2>What's your first language?</h2>
-
-            {selectedLanguage && LANGUAGE_SUBHEADINGS[selectedLanguage] && (
-              <p
-                className={`lang-subheading fade-in ${isRTL(selectedLanguage) ? "rtl-text" : ""}`}
-                dir={isRTL(selectedLanguage) ? "rtl" : undefined}
-              >
-                {LANGUAGE_SUBHEADINGS[selectedLanguage]}
-              </p>
-            )}
-
-            {/* Language card grid */}
-            <div className="language-grid">
-              {LANGUAGES.map((lang) => (
-                <button
-                  key={lang.key}
-                  className={`language-card ${selectedLanguage === lang.key ? "selected" : ""}`}
-                  onClick={() => handleLanguageSelect(lang.key)}
-                >
-                  <span className="lang-flag">{lang.flag}</span>
-                  <span className="lang-english">{lang.english}</span>
-                  <span
-                    className={`lang-native ${isRTL(lang.key) ? "rtl-text" : ""}`}
-                    dir={isRTL(lang.key) ? "rtl" : undefined}
-                  >
-                    {lang.native}
-                  </span>
+            {diagPhase === "auto_detect" && renderStep3AutoDetect()}
+            {diagPhase === "recording"   && renderStep3Recording()}
+            {diagPhase === "analyzing"   && renderStep3Analyzing()}
+            {diagPhase === "results"     && renderStep3Results()}
+            {diagPhase === "error" && (
+              <div className="diag-error-wrap fade-in">
+                <h2>Something went wrong</h2>
+                <p className="diag-error-msg">{errMsg}</p>
+                <button className="onboarding-btn" onClick={() => setDiagPhase("auto_detect")}>
+                  Try Again
                 </button>
-              ))}
-            </div>
-
-            {/* Zero-knowledge checkbox — fades in after language selected */}
-            {showCheckbox && selectedLanguage && (
-              <div className="zero-knowledge-section fade-in">
-                <label className="zk-checkbox-label">
-                  <div className="zk-checkbox-wrapper">
-                    <input
-                      type="checkbox"
-                      className="zk-checkbox-input"
-                      checked={isZeroKnowledge}
-                      onChange={(e) => setIsZeroKnowledge(e.target.checked)}
-                    />
-                    <div className={`zk-custom-checkbox ${isZeroKnowledge ? "checked" : ""}`}>
-                      {isZeroKnowledge && <span className="zk-check">✓</span>}
-                    </div>
-                  </div>
-                  <span
-                    className={`zk-label-text ${isRTL(selectedLanguage) ? "rtl-text" : ""}`}
-                    dir={isRTL(selectedLanguage) ? "rtl" : undefined}
-                  >
-                    {ZERO_KNOWLEDGE_LABELS[selectedLanguage] || ZERO_KNOWLEDGE_LABELS.other_lang}
-                  </span>
-                </label>
-
-                {isZeroKnowledge && (
-                  <p
-                    className={`zk-confirmation fade-in ${isRTL(selectedLanguage) ? "rtl-text" : ""}`}
-                    dir={isRTL(selectedLanguage) ? "rtl" : undefined}
-                  >
-                    {ZERO_KNOWLEDGE_CONFIRMATIONS[selectedLanguage] ||
-                      ZERO_KNOWLEDGE_CONFIRMATIONS.other_lang}
-                  </p>
-                )}
-              </div>
-            )}
-
-            {/* CTA button — changes based on zero-knowledge toggle */}
-            {selectedLanguage && (
-              <div className="onboarding-actions bottom-fixed">
-                {isZeroKnowledge ? (
-                  <button
-                    className="onboarding-btn"
-                    onClick={handleStartLearning}
-                    disabled={savingComplete}
-                  >
-                    {savingComplete ? "Starting..." : startLearningLabel}
-                  </button>
-                ) : (
-                  <button
-                    className="onboarding-btn"
-                    onClick={handleContinueToDiagnostic}
-                    disabled={savingComplete}
-                  >
-                    {savingComplete ? "Loading..." : "Continue to Voice Test"}
-                  </button>
-                )}
               </div>
             )}
           </div>

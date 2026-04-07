@@ -119,22 +119,31 @@ export default function SettingsPage() {
   const handleAccentPreview = async (accent) => {
     if (previewingAccent === accent) return;
     setPreviewingAccent(accent);
+
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    await audioCtx.resume();
+
     try {
       const token = await currentUser.getIdToken();
       const res = await fetch(`${API_URL}/api/accent/preview?accent=${accent}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (res.ok) {
-        const buf = await res.arrayBuffer();
-        const blob = new Blob([buf], { type: "audio/wav" });
-        const url = URL.createObjectURL(blob);
-        const audio = new Audio(url);
-        audio.onended = () => setPreviewingAccent(null);
-        audio.play();
-      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      const raw = await res.arrayBuffer();
+      const audioBuffer = await audioCtx.decodeAudioData(raw.slice(0));
+      const source = audioCtx.createBufferSource();
+      source.buffer = audioBuffer;
+      source.connect(audioCtx.destination);
+      source.onended = () => {
+        setPreviewingAccent(null);
+        audioCtx.close();
+      };
+      source.start(0);
     } catch (err) {
       console.error("[Settings] Accent preview failed:", err);
       setPreviewingAccent(null);
+      audioCtx.close();
     }
   };
 

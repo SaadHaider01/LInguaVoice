@@ -121,10 +121,16 @@ router.post("/init", async (req, res) => {
     const nativeLangA0 = userData.native_language || "other";
     // lessonId e.g. "A0_alphabet_0" → index = last segment
     const lessonIndex  = lessonId ? (parseInt(lessonId.split("_").pop()) || 0) : 0;
-    // Derive lesson topic from lessonIndex (0="Letter A", 1="Letter B", etc.)
-    const ALPHABET = ["A","B","C","D","E","F","G","H","I","J","K","L","M",
-                      "N","O","P","Q","R","S","T","U","V","W","X","Y","Z"];
-    const lessonTopic  = `The letter ${ALPHABET[lessonIndex] || "A"}`;
+    const A0_GROUPS = [
+      ['A','B','C','D','E'],
+      ['F','G','H','I','J','K'],
+      ['L','M','N','O','P','Q'],
+      ['R','S','T','U','V'],
+      ['W','X','Y','Z'],
+      ['cat','dog','sun','run','big','red']
+    ];
+    let group = A0_GROUPS[lessonIndex] || A0_GROUPS[0];
+    const lessonTopic  = lessonIndex === 5 ? `Review Words` : `The letter ${group[0]}`;
 
     try {
       const flaskRes = await axios.post(`${FLASK_URL}/lesson`, {
@@ -136,7 +142,7 @@ router.post("/init", async (req, res) => {
         is_zero_knowledge: userData.is_zero_knowledge !== false,
         history:           [],
         audio:             null,
-        session_stats:     { total_attempts: 0, correct_attempts: 0 },
+        session_stats:     { total_attempts: 0, correct_attempts: 0, current_letter_index: 0, attempt_counts: {} },
       }, { timeout: 60000 });
 
       const fd = flaskRes.data;
@@ -151,10 +157,13 @@ router.post("/init", async (req, res) => {
           praise:           "",
           correction:       null,
           student_score:    100,
-          anchor: { type: "letter", content: ALPHABET[lessonIndex] || "A", translation: lessonTopic },
+          current_letter:   group[0],
+          current_letter_index: 0,
+          total_letters:    group.length,
+          anchor: { type: "letter", content: group[0] || "A", translation: lessonIndex === 5 ? "Review" : `Letter 1 of ${group.length}` },
         },
         audioBase64:   fd.audio || null,
-        session_stats: fd.session_stats || { total_attempts: 0, correct_attempts: 0 },
+        session_stats: fd.session_stats || { total_attempts: 0, correct_attempts: 0, current_letter_index: 0, attempt_counts: {} },
         lesson_topic:  lessonTopic,
         lesson_index:  lessonIndex,
         is_a0:         true,
@@ -165,14 +174,18 @@ router.post("/init", async (req, res) => {
         sessionId:      `${decoded.uid}_a0_fallback`,
         step_index:     0,
         aiResponseJSON: {
-          teacher_response: `Let\'s learn the letter ${ALPHABET[lessonIndex] || "A"} today! Ready?`,
+          teacher_response: `Let\'s learn the letter ${group[0] || "A"} today! Ready?`,
           advance_step:     false,
           errors_detected:  [],
-          anchor: { type: "letter", content: ALPHABET[lessonIndex] || "A", translation: lessonTopic },
+          current_letter:   group[0],
+          current_letter_index: 0,
+          total_letters:    group.length,
+          anchor: { type: "letter", content: group[0] || "A", translation: `Letter 1 of ${group.length}` },
         },
         audioBase64:   null,
         lesson_topic:  lessonTopic,
         lesson_index:  lessonIndex,
+        session_stats: { total_attempts: 0, correct_attempts: 0, current_letter_index: 0, attempt_counts: {} },
         is_a0:         true,
       });
     }
@@ -298,6 +311,7 @@ router.post("/a0-turn", upload.single("audio"), async (req, res) => {
     lesson_index    = "0",
     accent_preference = "american",
     session_stats   = "{}",
+    force_advance   = false,
   } = req.body;
 
   // Parse session_stats (sent as JSON string in FormData)
@@ -316,39 +330,63 @@ router.post("/a0-turn", upload.single("audio"), async (req, res) => {
   }
 
   try {
+    const idx = parseInt(lesson_index) || 0;
+    const A0_GROUPS = [
+      ['A','B','C','D','E'],
+      ['F','G','H','I','J','K'],
+      ['L','M','N','O','P','Q'],
+      ['R','S','T','U','V'],
+      ['W','X','Y','Z'],
+      ['cat','dog','sun','run','big','red']
+    ];
+    let group = A0_GROUPS[idx] || A0_GROUPS[0];
+    let cl_index = parsedStats.current_letter_index || 0;
+    
+    // Topic must dynamically reflect the active letter during this turn
+    const currentTopic = idx === 5 ? `Review Words` : `The letter ${group[Math.min(cl_index, group.length - 1)]}`;
+
     const flaskRes = await axios.post(`${FLASK_URL}/lesson`, {
       level:             "A0",
       step,
       native_language,
       accent_preference,
-      lesson_topic,
+      lesson_topic:      currentTopic,
       is_zero_knowledge: true,
       history:           [],
       audio:             audioB64,
       session_stats:     parsedStats,
+      force_advance:     force_advance === "true" || force_advance === true,
     }, { timeout: 60000 });
 
     const fd = flaskRes.data;
-    const ALPHABET = ["A","B","C","D","E","F","G","H","I","J","K","L","M",
-                      "N","O","P","Q","R","S","T","U","V","W","X","Y","Z"];
-    const idx = parseInt(lesson_index) || 0;
+    
+    let isComplete = fd.lesson_complete || false;
+    let next_cl_index = fd.session_stats?.current_letter_index || cl_index;
+    if (next_cl_index >= group.length) {
+      isComplete = true; // They finished all letters in this chunk
+    }
+    
+    const nextLetter = group[Math.min(next_cl_index, group.length - 1)];
 
     // Shape matches /turn so LessonPage.jsx doesn't need branching
     return res.json({
       transcript:     "", // Whisper handled by Flask
       step_index:     step === "feedback" ? 4 : 2,
-      completed:      fd.lesson_complete || false,
+      completed:      isComplete,
       final_score:    fd.score || null,
       session_stats:  fd.session_stats,
       audioBase64:    fd.audio || null,
       aiResponseJSON: {
         teacher_response: fd.text || "",
-        advance_step:     fd.lesson_complete || false,
+        advance_step:     fd.advance_step || false,
         errors_detected:  [],
         praise:           "",
         correction:       null,
-        student_score:    fd.score || null,
-        anchor: { type: "letter", content: ALPHABET[idx] || "A", translation: lesson_topic },
+        student_score:    fd.student_score || 100,
+        current_letter:   nextLetter,
+        current_letter_index: next_cl_index,
+        total_letters:    group.length,
+        anchor: { type: "letter", content: nextLetter, translation: idx === 5 ? "Review" : `Letter ${Math.min(next_cl_index + 1, group.length)} of ${group.length}` },
       },
     });
   } catch (err) {
