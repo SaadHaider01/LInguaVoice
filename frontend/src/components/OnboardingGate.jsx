@@ -36,16 +36,46 @@ export default function OnboardingGate({ children }) {
   const location = useLocation();
 
   if (loading) return null;
+  if (!userDoc) return children; // Guest/Auth handled by ProtectedRoute
 
-  const complete = isOnboardingComplete(userDoc);
+  // Step 1 check: Basic User Info (Lang + ZK preference)
+  const EXCLUDED_LANGS = ["", "other", "other_unset", "unknown"];
+  const hasLanguage = userDoc.native_language && !EXCLUDED_LANGS.includes(userDoc.native_language);
+  const finishedOnboardingPage = !!(hasLanguage && (userDoc.is_zero_knowledge !== undefined));
 
-  // Not complete and not already on /onboarding → redirect
-  if (userDoc && !complete && location.pathname !== "/onboarding") {
+  // Step 2 check: Level Assessment (Diagnostic or Zero-Knowledge path)
+  const hasLevel = (userDoc.is_zero_knowledge === true) || !!userDoc.cefr_level || !!userDoc.assessment?.level;
+
+  // Step 3 check: Accent Selection
+  const hasAccent = !!(userDoc.preferred_accent || userDoc.accent_preference);
+
+  const pathname = location.pathname;
+
+  // -- REDIRECT LOGIC (The Funnel) --
+
+  // 1. If basic onboarding not done -> force /onboarding
+  if (!finishedOnboardingPage && pathname !== "/onboarding") {
     return <Navigate to="/onboarding" replace />;
   }
 
-  // Already complete and trying to visit /onboarding → send to dashboard
-  if (userDoc && complete && location.pathname === "/onboarding") {
+  // 2. If finished onboarding page but no level -> force /diagnostic (unless A0)
+  if (finishedOnboardingPage && !hasLevel && userDoc.is_zero_knowledge !== true) {
+     if (pathname !== "/diagnostic") {
+       return <Navigate to="/diagnostic" replace />;
+     }
+  }
+
+  // 3. If has level but no accent selected -> force /accent
+  if (hasLevel && !hasAccent) {
+     if (pathname !== "/accent") {
+       return <Navigate to="/accent" replace />;
+     }
+  }
+
+  // 4. If fully finished and trying to visit onboarding routes -> go to dashboard
+  const fullyComplete = finishedOnboardingPage && hasLevel && hasAccent;
+  const isOnboardingRoute = ["/onboarding", "/diagnostic", "/accent"].includes(pathname);
+  if (fullyComplete && isOnboardingRoute) {
     return <Navigate to="/dashboard" replace />;
   }
 

@@ -51,7 +51,7 @@ export default function SignupPage() {
     setLoading(true);
     try {
       await signup(email.trim(), password, displayName.trim());
-      navigate("/diagnostic");
+      navigate("/dashboard");
     } catch (err) {
       setError(friendlyError(err.code));
     } finally {
@@ -64,7 +64,7 @@ export default function SignupPage() {
     setGoogleLoad(true);
     try {
       await loginWithGoogle();
-      navigate("/diagnostic");
+      navigate("/dashboard");
     } catch (err) {
       if (err.code !== "auth/popup-closed-by-user") {
         setError(friendlyError(err.code));

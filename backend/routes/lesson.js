@@ -183,7 +183,7 @@ router.post("/init", async (req, res) => {
     return res.status(400).json({ error: "Valid moduleId is required" });
   }
 
-  const cefrLevel = userData.assessment?.level || "A1";
+  const cefrLevel = userData.cefr_level || userData.assessment?.level || "A1";
   const accent    = userData.preferred_accent || userData.accent_preference || "american";
   const levelGroup = getLevelGroup(cefrLevel);
   const nativeLang = userData.assessment?.detected_native_accent || "unknown";

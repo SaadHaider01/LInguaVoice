@@ -88,6 +88,8 @@ export function AuthProvider({ children }) {
   async function logout() {
     await signOut(auth);
     setUserDoc(null);
+    localStorage.removeItem("onboarding_step");
+    localStorage.removeItem("onboarding_language");
   }
 
   async function resetPassword(email) {

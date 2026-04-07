@@ -47,7 +47,7 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await login(email.trim(), password);
-      navigate("/diagnostic", { replace: true });
+      navigate(from, { replace: true });
     } catch (err) {
       setError(friendlyError(err.code));
     } finally {
@@ -60,7 +60,7 @@ export default function LoginPage() {
     setGoogleLoad(true);
     try {
       await loginWithGoogle();
-      navigate("/diagnostic", { replace: true });
+      navigate(from, { replace: true });
     } catch (err) {
       if (err.code !== "auth/popup-closed-by-user") {
         setError(friendlyError(err.code));

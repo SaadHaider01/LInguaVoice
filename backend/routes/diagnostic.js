@@ -194,6 +194,7 @@ router.post("/", upload.single("audio"), async (req, res) => {
 
     // 6. Save to Firestore
     await admin.firestore().collection("users").doc(uid).update({
+      cefr_level:   assessment.level,
       assessment:   assessment,
       last_active:  admin.firestore.FieldValue.serverTimestamp(),
     });

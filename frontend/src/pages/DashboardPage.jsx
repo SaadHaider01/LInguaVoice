@@ -33,7 +33,7 @@ export default function DashboardPage() {
   const appLevel = userDoc?.app_level || 1;
 
   // ── New: curriculum-aware lesson progress ─────────────────
-  const cefrLevel        = userDoc?.cefr_level || null;         // null until onboarding done
+  const cefrLevel        = userDoc?.cefr_level || userDoc?.assessment?.level || (userDoc?.is_zero_knowledge === true ? "A0" : null);
   const isA0User         = cefrLevel === "A0";
   const unlockedLessons  = userDoc?.unlocked_lessons || [];     // array of lesson key strings
   const lessonScores     = userDoc?.lesson_scores || {};        // { "A0_alphabet_0": 85 }
