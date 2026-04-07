@@ -183,6 +183,9 @@ def lesson():
 
     total_attempts   = int(session_stats.get("total_attempts", 0))
     correct_attempts = int(session_stats.get("correct_attempts", 0))
+    current_letter_index = int(session_stats.get("current_letter_index", 0))
+    attempt_counts   = session_stats.get("attempt_counts", {})
+    force_advance    = data.get("force_advance", False)
 
     # ── Transcribe audio (Whisper) ─────────────────────────────────
     transcript = ""
@@ -333,6 +336,44 @@ Student said: "{transcript}"
     parsed_json = {}
     is_json = use_a0_mode and step == "guided"
 
+    # ── Force advance intercept (Skip button or 3-strike rule) ────
+    letter_key = str(current_letter_index)
+    current_letter_attempts = int(attempt_counts.get(letter_key, 0))
+    three_strike_triggered = use_a0_mode and step == "guided" and not force_advance and current_letter_attempts >= 2
+
+    if (force_advance or three_strike_triggered) and use_a0_mode and step == "guided":
+        # Advance to next letter without calling Groq
+        next_letter_index = current_letter_index + 1
+        session_stats["current_letter_index"] = next_letter_index
+        session_stats["attempt_counts"] = attempt_counts  # preserve 
+        session_stats["total_attempts"] = total_attempts
+        session_stats["correct_attempts"] = correct_attempts
+
+        skip_msg = "Let's keep going — we can practice this more later. Ab hum agla letter seekhte hain!"
+        skip_json = {
+            "teacher_response": skip_msg,
+            "advance_step": True,
+            "errors_detected": [],
+            "praise": "You tried!",
+            "correction": None,
+            "student_score": 50
+        }
+        try:
+            from tts_handler import synthesize_speech
+            skip_wav = synthesize_speech(skip_msg, accent_preference, native_language)
+            skip_audio = base64.b64encode(skip_wav).decode("utf-8")
+        except Exception:
+            skip_audio = None
+
+        return jsonify({
+            "text": skip_msg,
+            "audio": skip_audio,
+            "step": step,
+            "session_stats": session_stats,
+            "advance_step": True,
+            "student_score": 50,
+        })
+
     try:
         if is_json:
             system_prompt += "\n\nIMPORTANT: YOU MUST RETURN ONLY VALID JSON. NO OTHER TEXT."
@@ -368,15 +409,33 @@ Student said: "{transcript}"
 
     # ── Heuristic: was guided attempt correct? ─────────────────────
     # Simple keyword check — if response contains celebration language, count as correct
-    if step == "guided":
-        if is_json and parsed_json.get("advance_step", False):
-             correct_attempts += 1
+    if step == "guided" and use_a0_mode:
+        advance = (is_json and parsed_json.get("advance_step", False))
+        if advance:
+            correct_attempts += 1
+            # Move to the next letter
+            current_letter_index += 1
+            session_stats["current_letter_index"] = current_letter_index
+            # Reset attempt counter for the new letter
+            new_key = str(current_letter_index)
+            attempt_counts[new_key] = 0
         else:
+            # Increment failure counter for this letter
+            letter_key = str(current_letter_index)
+            attempt_counts[letter_key] = int(attempt_counts.get(letter_key, 0)) + 1
             celebration_keywords = ["great", "perfect", "excellent", "wonderful", "correct",
                                      "well done", "amazing", "fantastic", "शानदार", "बहुत अच्छे",
                                      "زبردست", "চমৎকার", "அருமை", "అద్భుతం", "bahut accha"]
             if any(kw.lower() in response_text.lower() for kw in celebration_keywords):
                 correct_attempts += 1
+        session_stats["attempt_counts"] = attempt_counts
+        parsed_json["advance_step"] = advance
+    elif step == "guided":
+        celebration_keywords = ["great", "perfect", "excellent", "wonderful", "correct",
+                                 "well done", "amazing", "fantastic", "शानदार", "बहुत अच्छे",
+                                 "زبردست", "চমৎকার", "அருமை", "అద్భுதం"]
+        if any(kw.lower() in response_text.lower() for kw in celebration_keywords):
+            correct_attempts += 1
 
     # ── Score calculation on feedback step ────────────────────────
     score = None
@@ -392,7 +451,7 @@ Student said: "{transcript}"
     audio_out_b64 = None
     try:
         from tts_handler import synthesize_speech
-        wav_bytes = synthesize_speech(response_text, accent_preference)
+        wav_bytes = synthesize_speech(response_text, accent_preference, native_language)
         audio_out_b64 = base64.b64encode(wav_bytes).decode("utf-8")
     except Exception as e:
         print(f"[/lesson TTS] Error: {e}")
