@@ -13,27 +13,58 @@
 }
 
 .xp-toast {
-  background: rgba(22, 22, 34, 0.95);
-  border: 1px solid rgba(255, 191, 0, 0.4);
-  backdrop-filter: blur(8px);
+  background: linear-gradient(135deg, rgba(22, 22, 34, 0.98), rgba(30, 18, 50, 0.98));
+  border: 1px solid rgba(255, 191, 0, 0.5);
+  backdrop-filter: blur(12px);
   padding: 12px 20px;
-  border-radius: 12px;
+  border-radius: 14px;
   color: #ffbf00;
   font-weight: 700;
-  font-size: 1.1rem;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  font-size: 1rem;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 191, 0, 0.1) inset;
   display: flex;
   align-items: center;
-  gap: 8px;
-  transform: translateX(150%);
-  animation: slideInRight 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.28) forwards;
+  gap: 10px;
+  /* Default hidden state — slides in from right */
+  transform: translateX(calc(100% + 30px));
+  opacity: 0;
+  transition: transform 0.45s cubic-bezier(0.18, 0.89, 0.32, 1.28),
+              opacity 0.3s ease;
   pointer-events: auto;
 }
 
-@keyframes slideInRight {
-  from { transform: translateX(150%); opacity: 0; }
-  to { transform: translateX(0); opacity: 1; }
+.xp-toast.xp-toast-in {
+  transform: translateX(0);
+  opacity: 1;
 }
+
+.xp-star {
+  font-size: 1.4rem;
+  line-height: 1;
+  filter: drop-shadow(0 0 6px rgba(255, 191, 0, 0.7));
+}
+
+.xp-toast-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.xp-amount {
+  font-size: 1.1rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: #ffbf00;
+}
+
+.xp-label {
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: rgba(255, 191, 0, 0.6);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
 
 /* Level Up Modal */
 .level-up-overlay {

@@ -3,7 +3,7 @@
 // SCOPE NOTE: Only the lesson grid section has been updated.
 // Header, XP bar, streak display, and badge sections are unchanged.
 // ============================================================
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { LEVEL_THRESHOLDS, LEVEL_NAMES } from "../constants/gamification";
@@ -137,22 +137,21 @@ export default function DashboardPage() {
     <div className="dashboard-page">
       {/* ─── Nav ─── */}
       <nav className="dashboard-nav">
-        <a href="/dashboard" className="nav-logo">
+        <Link to="/dashboard" className="nav-logo">
           🎤 <span>LinguaVoice</span>
-        </a>
+        </Link>
         <div className="nav-actions">
-          <a href="/vocabulary" className="nav-link">Vocabulary</a>
-          <a href="/badges" className="nav-link">Badges</a>
+          <Link to="/vocabulary" className="nav-link">Vocabulary</Link>
+          <Link to="/badges" className="nav-link">Badges</Link>
           <span className="nav-user" title={currentUser?.email}>
             {displayName}
           </span>
-          {/* Settings gear — links to /settings */}
-          <a
-            href="/settings"
+          <Link
+            to="/settings"
             className="nav-settings-icon"
             title="Settings"
             aria-label="Settings"
-          >⚙️</a>
+          >⚙️</Link>
           <button id="dashboard-logout" className="btn-logout" onClick={handleLogout}>
             Log out
           </button>

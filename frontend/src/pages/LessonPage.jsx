@@ -4,7 +4,7 @@
 // Immersive conversational interface.
 // ============================================================
 import { useState, useEffect, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import "./lesson.css";
 
@@ -220,7 +220,8 @@ export default function LessonPage() {
     formData.append("sessionId", sessionId);
 
     if (isA0) {
-      const stepMap = ["warmup", "input", "guided", "free", "feedback"];
+      // FIX 6: A0 step map uses 'teaching' not 'input' to match Flask handler
+      const stepMap = ["warmup", "teaching", "guided", "freetalk", "feedback"];
       formData.append("step", stepMap[currentStep] || "guided");
       formData.append("native_language", userDoc?.native_language || "other");
       formData.append("lesson_topic", lessonTopic);
@@ -308,7 +309,8 @@ export default function LessonPage() {
     formData.append("sessionId", sessionId);
 
     if (isA0) {
-      const stepMap = ["warmup", "input", "guided", "free", "feedback"];
+      // FIX 6: Use same step map as processTurn
+      const stepMap = ["warmup", "teaching", "guided", "freetalk", "feedback"];
       formData.append("step", stepMap[currentStep] || "guided");
       formData.append("native_language", userDoc?.native_language || "other");
       formData.append("lesson_topic", lessonTopic);
@@ -501,8 +503,9 @@ export default function LessonPage() {
 
   // Active Lesson View
   const progressPercent = ((currentStep + 1) / 5) * 100;
-  // Hide record button on "input" step (step index 1 ordinarily, but dynamic logic allowed)
-  const isInputStep = currentStep === 1;
+  // FIX 6: 'teaching' step (index 1) is listen-only for A0; standard for A1+
+  // The Continue button on teaching step advances without recording.
+  const isTeachingStep = currentStep === 1;
 
   return (
     <div className="lesson-page">
@@ -608,7 +611,7 @@ export default function LessonPage() {
           </div>
         )}
       
-        {!isInputStep && !isPlaying && !isProcessing && (
+        {!isTeachingStep && !isPlaying && !isProcessing && (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
               <button 
@@ -635,24 +638,23 @@ export default function LessonPage() {
             )}
           </div>
         )}
-        {(isPlaying || isProcessing || isInputStep) && (
+        {(isPlaying || isProcessing || isTeachingStep) && (
           <div style={{height: "80px", display: "flex", alignItems: "center", color: "rgba(255,255,255,0.5)"}}>
             {isPlaying ? "Teacher is speaking..." : isProcessing ? "Analyzing..." : "Listen closely..."}
           </div>
         )}
         
-        {isInputStep && !isPlaying && !isProcessing && (
+        {/* FIX 6: Teaching step — listen-only, Continue advances without audio */}
+        {isTeachingStep && !isPlaying && !isProcessing && (
           <button 
              className="btn-primary" 
              style={{marginTop: "1rem"}}
              onClick={() => {
-                // If it's the input step and audio finished, manually trigger next step
-                // (Using a simple turn with empty audio or bypassing via an API call)
                 setIsProcessing(true);
-                processTurn(); // Empty buffer is sent, backend will handle or we just provide advance
+                processTurn(); // Empty audio buffer — backend gets teaching step, auto-advances
              }}
           >
-            Continue
+            Continue →
           </button>
         )}
       </div>

@@ -24,6 +24,7 @@ from whisper_handler  import transcribe_audio
 # mistral_handler is imported lazily inside /generate_response to avoid
 # loading the 4GB model at startup — it loads on first request instead.
 from tts_handler      import synthesize_speech
+from a0_curriculum    import A0_GROUPS, get_a0_group, get_group_letters
 
 load_dotenv()
 
@@ -266,7 +267,19 @@ RULES — follow strictly:
         current_letter = lesson_topic.split()[-1] if lesson_topic else "A"
         step_additions = {
             "warmup": f"Greet the student warmly in {native_language}. State today's lesson in one sentence. Ask if ready with a yes/no question. Max 2 sentences.",
-            "teaching": f"Teach {lesson_topic}. Explain in {native_language}. Relate to closest {native_language} sound. Show English version in quotes. Invite student to try. Max 3 sentences.",
+            "teaching": f"""You are teaching the letter/sound '{current_letter}' to a complete beginner.
+Explain in {native_language} what this letter looks like and sounds like.
+Give one {native_language} word that starts with a similar sound.
+Tell the student to listen and then try repeating it.
+Return ONLY this JSON:
+{{
+  "teacher_response": "your teaching explanation in {native_language}",
+  "advance_step": true,
+  "errors_detected": [],
+  "praise": "",
+  "correction": null,
+  "student_score": 100
+}}""",
             "guided": f"""You are teaching the letter {current_letter} to a beginner.
 The student just said: '{transcript}'
 
@@ -334,7 +347,8 @@ Student said: "{transcript}"
 
     response_text = ""
     parsed_json = {}
-    is_json = use_a0_mode and step == "guided"
+    # JSON mode: guided step AND teaching step (both return structured JSON)
+    is_json = use_a0_mode and step in ("guided", "teaching")
 
     # ── Force advance intercept (Skip button or 3-strike rule) ────
     letter_key = str(current_letter_index)
