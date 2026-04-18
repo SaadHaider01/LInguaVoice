@@ -1,15 +1,25 @@
 import os
 from dotenv import load_dotenv
 
+_groq_client = None
+
+def get_groq_client():
+    global _groq_client
+    if _groq_client is None:
+        from dotenv import load_dotenv
+        load_dotenv()
+        import os
+        from groq import Groq
+        api_key = os.environ.get('GROQ_API_KEY')
+        print(f'[Groq] Initializing client... '
+              f'key: {str(api_key)[:8]}...')
+        _groq_client = Groq(api_key=api_key)
+        print('[Groq] Client ready ✓')
+    return _groq_client
+
 def generate_response(prompt: str) -> str:
     try:
-        from groq import Groq
-        
-        load_dotenv()
-        GROQ_API_KEY = os.environ.get('GROQ_API_KEY')
-        print(f"[Groq] Key loaded: {str(GROQ_API_KEY)[:8]}...")
-
-        client = Groq(api_key=GROQ_API_KEY)
+        client = get_groq_client()
 
         print("[Groq] Sending to cloud inference...")
 

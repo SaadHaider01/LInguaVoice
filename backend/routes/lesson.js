@@ -555,6 +555,15 @@ Return ONLY this JSON:
     })).catch(e => console.error("[Auto-Vocab Injection Error]", e));
   }
 
+  // ─── Compute avgPronunciation for gamification (before lesson-complete block) ───
+  const pronScores = sessionData.turns
+    .map(t => t.pronunciation_score)
+    .filter(s => s !== undefined && s !== null);
+  const avgPronunciation = pronScores.length
+    ? Math.round(pronScores.reduce((a, b) => a + b, 0) / pronScores.length)
+    : 0;
+  console.log('[Lesson] avgPronunciation:', avgPronunciation);
+
   if (curStepIdx >= 4 && aiResJson.advance_step) { // completed
     sessionData.completed = true;
     sessionData.completed_at = admin.firestore.FieldValue.serverTimestamp();
@@ -563,8 +572,8 @@ Return ONLY this JSON:
     
     // Recap Trigger 
     const turnsText = sessionData.turns.map(t => `Student: ${t.user_transcript}\nTeacher: ${t.ai_response}`).join("\n\n");
-    const pronScores = sessionData.turns.map(t => t.pronunciation_score).filter(s => s !== undefined);
-    const recapPrompt = `You are an encouraging English tutor. The student just completed a lesson. Here is the full transcript of the lesson:\n${turnsText}\n\nTheir pronunciation scores per turn were: ${JSON.stringify(pronScores)}\n\nGenerate a lesson recap in JSON with these fields:\n- summary: a 2-sentence warm summary of what was covered\n- words_practiced: array of up to 6 words the student used or was taught (each with 'word' and 'definition')\n- top_strength: one specific thing the student did well (1 sentence)\n- focus_for_next: one specific thing to practice before the next lesson (1 sentence)\n- overall_grade: a letter grade A/B/C/D based on aggregate score\n\nReturn only valid JSON.`;
+    const recapPronScores = sessionData.turns.map(t => t.pronunciation_score).filter(s => s !== undefined);
+    const recapPrompt = `You are an encouraging English tutor. The student just completed a lesson. Here is the full transcript of the lesson:\n${turnsText}\n\nTheir pronunciation scores per turn were: ${JSON.stringify(recapPronScores)}\n\nGenerate a lesson recap in JSON with these fields:\n- summary: a 2-sentence warm summary of what was covered\n- words_practiced: array of up to 6 words the student used or was taught (each with 'word' and 'definition')\n- top_strength: one specific thing the student did well (1 sentence)\n- focus_for_next: one specific thing to practice before the next lesson (1 sentence)\n- overall_grade: a letter grade A/B/C/D based on aggregate score\n\nReturn only valid JSON.`;
     
     try {
       const recapRes = await axios.post(`${FLASK_URL}/generate_response`, {
@@ -592,14 +601,7 @@ Return ONLY this JSON:
     }
 
     // ─── Compute average pronunciation BEFORE gamification block ───
-    // FIX: avgPronunciation was used below but never defined — crashed silently.
-    const pronScores = sessionData.turns
-      .map(t => t.pronunciation_score)
-      .filter(s => s !== undefined && s !== null);
-    const avgPronunciation = pronScores.length
-      ? Math.round(pronScores.reduce((a, b) => a + b, 0) / pronScores.length)
-      : 0;
-    console.log('[Lesson] avgPronunciation:', avgPronunciation);
+    // (Now computed above, before the if-block — this comment is preserved for context)
 
     // Update User Progress
     const userUpdates = {};

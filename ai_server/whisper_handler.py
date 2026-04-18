@@ -1,62 +1,163 @@
 import os
-import sys
-import gc
-import whisper
+import io
 import tempfile
-
-# Force ffmpeg path for Windows
-os.environ["PATH"] = (
-    r"C:\Windows\System32" + os.pathsep + 
-    os.environ.get("PATH", "")
-)
-
-# Also set ffmpeg path directly for whisper
-import whisper.audio
-whisper.audio.FFMPEG = r"C:\Windows\System32\ffmpeg.exe"
-
-from typing import Tuple
+import gc
 
 def transcribe_audio(audio_bytes: bytes,
-                     mime_type: str = 'audio/webm') -> Tuple[str, int]:
+                     mime_type: str = 'audio/wav',
+                     context: str = None,
+                     lesson_level: str = None
+                     ) -> tuple:
+    
+    from dotenv import load_dotenv
+    load_dotenv()
+    
+    use_local = os.environ.get(
+        'USE_LOCAL_WHISPER', 'false'
+    ).lower() == 'true'
+    
+    if use_local:
+        return _transcribe_local(
+            audio_bytes, mime_type, context
+        )
+    else:
+        return _transcribe_groq(
+            audio_bytes, mime_type, context,
+            lesson_level
+        )
 
-    ext_map = {
+
+def _transcribe_groq(audio_bytes: bytes,
+                      mime_type: str,
+                      context: str = None,
+                      lesson_level: str = None
+                      ) -> tuple:
+    
+    from groq import Groq
+    import os
+    
+    api_key = os.environ.get('GROQ_API_KEY')
+    client = Groq(api_key=api_key)
+    
+    # Save to temp file (Groq needs file object)
+    suffix_map = {
         'audio/webm': '.webm',
         'audio/wav': '.wav',
         'audio/mp4': '.mp4',
         'audio/ogg': '.ogg',
-        'audio/mpeg': '.mp3',
+        'audio/mpeg': '.mp3'
     }
-    suffix = ext_map.get(mime_type, '.webm')
-
+    suffix = suffix_map.get(mime_type, '.wav')
+    
     tmp_path = os.path.join(
         tempfile.gettempdir(),
-        f'whisper_audio_{os.getpid()}{suffix}'
+        f'groq_audio_{os.getpid()}{suffix}'
     )
-
+    
     try:
         with open(tmp_path, 'wb') as f:
             f.write(audio_bytes)
-
-        print(f'[Whisper] Saved to {tmp_path}')
-        print(f'[Whisper] Size: {os.path.getsize(tmp_path)} bytes')
         
-        # Verify ffmpeg is accessible
-        import subprocess
-        result = subprocess.run(
-            ['ffmpeg', '-version'], 
-            capture_output=True, 
-            text=True
+        print(f'[Whisper/Groq] Transcribing '
+              f'{len(audio_bytes)} bytes...')
+        
+        # Build prompt for context
+        prompt = None
+        if lesson_level == 'A0' and context:
+            prompt = (
+                f"The student is practicing "
+                f"the letter {context}. "
+                f"They are saying a single "
+                f"letter or its sound."
+            )
+        
+        with open(tmp_path, 'rb') as audio_file:
+            transcription_params = {
+                'file': (
+                    f'audio{suffix}', 
+                    audio_file, 
+                    mime_type
+                ),
+                'model': 'whisper-large-v3',
+                'language': 'en',
+                'response_format': 'json',
+                'temperature': 0.0
+            }
+            if prompt:
+                transcription_params['prompt'] = prompt
+            
+            result = client.audio.transcriptions.create(
+                **transcription_params
+            )
+        
+        transcript = result.text.strip()
+        print(f'[Whisper/Groq] Transcript: '
+              f'"{transcript[:80]}"')
+        
+        # Calculate simple confidence score
+        confidence = 0.95 if transcript else 0.0
+        
+        # The AI server's call expect 0-100 scale here
+        return transcript, int(confidence * 100)
+        
+    except Exception as e:
+        print(f'[Whisper/Groq] ERROR: {e}')
+        print('[Whisper/Groq] Falling back '
+              'to local Whisper...')
+        return _transcribe_local(
+            audio_bytes, mime_type, context
         )
-        print(f'[Whisper] ffmpeg check: {result.returncode}')
+    finally:
+        if os.path.exists(tmp_path):
+            try:
+                os.remove(tmp_path)
+            except:
+                pass
 
-        print(f'[Whisper] Loading model...')
-        model = whisper.load_model('base')
-        print(f'[Whisper] Transcribing...')
 
-        result = model.transcribe(tmp_path, language='en')
-        transcript = result.get('text', '').strip()
-        segments = result.get('segments', [])
+def _transcribe_local(audio_bytes: bytes,
+                       mime_type: str,
+                       context: str = None
+                       ) -> tuple:
+    """
+    Local Whisper fallback.
+    Only used if USE_LOCAL_WHISPER=true
+    or if Groq transcription fails.
+    """
+    import whisper
+    
+    suffix_map = {
+        'audio/webm': '.webm',
+        'audio/wav': '.wav',
+        'audio/mp4': '.mp4',
+    }
+    suffix = suffix_map.get(mime_type, '.wav')
+    
+    tmp_path = os.path.join(
+        tempfile.gettempdir(),
+        f'whisper_local_{os.getpid()}{suffix}'
+    )
+    
+    try:
+        with open(tmp_path, 'wb') as f:
+            f.write(audio_bytes)
         
+        print('[Whisper/Local] Loading model...')
+        model = whisper.load_model('base')
+        print('[Whisper/Local] Transcribing...')
+        
+        options = {'language': 'en'}
+        if context:
+            options['initial_prompt'] = (
+                f"Expected: {context}"
+            )
+        
+        result = model.transcribe(
+            tmp_path, **options
+        )
+        transcript = result['text'].strip()
+        
+        segments = result.get('segments', [])
         if segments:
             avg_logprob = sum(seg.get('avg_logprob', -1.0) for seg in segments) / len(segments)
         else:
@@ -64,26 +165,19 @@ def transcribe_audio(audio_bytes: bytes,
             
         score = max(0, min(100, int((avg_logprob + 1.0) * 100)))
 
-        print(f'[Whisper] Transcript: {transcript[:100]} | Score: {score}')
-
-        # Cleanup model from memory
         del model
         gc.collect()
-        import ctypes
-        ctypes.windll.kernel32.SetProcessWorkingSetSize(-1, -1, -1)
-
-        print(f'[Whisper] Done.')
+        
+        print(f'[Whisper/Local] Transcript: '
+              f'"{transcript[:80]}"')
         return transcript, score
-
+        
     except Exception as e:
-        print(f'[Whisper] ERROR: {type(e).__name__}: {e}')
-        import traceback
-        traceback.print_exc()
-        raise e
-
+        print(f'[Whisper/Local] ERROR: {e}')
+        return '', 0
     finally:
         if os.path.exists(tmp_path):
             try:
                 os.remove(tmp_path)
-            except Exception as cleanup_err:
-                print(f'[Whisper] Cleanup warning: {cleanup_err}')
+            except:
+                pass

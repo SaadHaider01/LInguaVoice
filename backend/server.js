@@ -83,6 +83,8 @@ app.get("/health", (_req, res) => {
   });
 });
 
+app.get('/favicon.ico', (req, res) => res.status(204).end());
+
 // ─── API routes ───────────────────────────────────────────────────────────────
 app.use("/api/auth",       authRoutes);
 app.use("/api/diagnostic", diagnosticRoutes);

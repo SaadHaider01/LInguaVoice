@@ -9,6 +9,33 @@ MODEL_PATH   = os.path.join(_DIR, 'kokoro-v1.0.int8.onnx')  # 88MB int8 quantize
 VOICES_PATH  = os.path.join(_DIR, 'voices-v1.0.bin')         # npz file, all 26 voices
 VOICES_DIR   = os.path.join(_DIR, 'voices')
 
+# Load model ONCE at module import
+# This runs when Flask starts
+_kokoro_model = None
+
+def _get_model():
+    global _kokoro_model
+    if _kokoro_model is None:
+        print('[TTS] Loading Kokoro model...')
+        from kokoro_onnx import Kokoro
+        _kokoro_model = Kokoro(
+            MODEL_PATH, 
+            VOICES_PATH
+        )
+        print('[TTS] Kokoro model loaded ✓')
+    return _kokoro_model
+
+# Pre-warm at import time
+print('[TTS] Pre-warming Kokoro...')
+try:
+    # Generate silent 0.1s audio to 
+    # warm up ONNX runtime
+    model = _get_model()
+    model.create("Hello", voice='af_heart')
+    print('[TTS] Kokoro warm ✓')
+except Exception as e:
+    print(f'[TTS] Pre-warm failed: {e}')
+
 # Voice map — uses .bin files in the voices/ directory
 VOICE_MAP = {
     'american': 'af_heart',   # warm American female
@@ -106,7 +133,6 @@ def _kokoro_synthesize(text: str, accent: str = 'american', speed: float = 1.0) 
     """
     Synthesize text to speech using Kokoro ONNX.
     """
-    from kokoro_onnx import Kokoro
 
     preferred = VOICE_MAP.get(accent, 'af_heart')
     if os.path.exists(_voice_path(preferred)):
@@ -127,7 +153,7 @@ def _kokoro_synthesize(text: str, accent: str = 'american', speed: float = 1.0) 
     if not os.path.exists(MODEL_PATH) or not os.path.exists(VOICES_PATH):
         raise RuntimeError(f"Kokoro models not found.")
 
-    kokoro = Kokoro(MODEL_PATH, VOICES_PATH)
+    kokoro = _get_model()
 
     samples, sample_rate = kokoro.create(
         text,
