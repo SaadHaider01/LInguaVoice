@@ -1,59 +1,93 @@
 import os
 import io
-import numpy as np
-import soundfile as sf
+from dotenv import load_dotenv
 
-_DIR         = os.path.dirname(os.path.abspath(__file__))
-# Official kokoro-onnx v1.0 release files — download: python download_kokoro_models.py
-MODEL_PATH   = os.path.join(_DIR, 'kokoro-v1.0.int8.onnx')  # 88MB int8 quantized
-VOICES_PATH  = os.path.join(_DIR, 'voices-v1.0.bin')         # npz file, all 26 voices
-VOICES_DIR   = os.path.join(_DIR, 'voices')
+def synthesize_speech(text: str,
+                      accent: str = 'american',
+                      native_language: str = 'english'
+                      ) -> bytes:
+    load_dotenv()
+    
+    # Route native language text to gTTS
+    if _is_native_language_text(text, native_language):
+        return _gtts_synthesize(text, native_language)
+    
+    # English text → Azure Neural TTS
+    return _azure_synthesize(text, accent)
 
-# Load model ONCE at module import
-# This runs when Flask starts
-_kokoro_model = None
 
-def _get_model():
-    global _kokoro_model
-    if _kokoro_model is None:
-        print('[TTS] Loading Kokoro model...')
-        from kokoro_onnx import Kokoro
-        _kokoro_model = Kokoro(
-            MODEL_PATH, 
-            VOICES_PATH
+def _azure_synthesize(text: str, 
+                       accent: str) -> bytes:
+    
+    import azure.cognitiveservices.speech as speechsdk
+    
+    load_dotenv()
+    speech_key = os.environ.get('AZURE_SPEECH_KEY')
+    speech_region = os.environ.get('AZURE_SPEECH_REGION')
+    
+    # Best Azure Neural voices per accent
+    voice_map = {
+        'american':   'en-US-AriaNeural',
+        'british':    'en-GB-SoniaNeural',
+        'indian':     'en-IN-NeerjaNeural',
+        'australian': 'en-AU-NatashaNeural'
+    }
+    voice = voice_map.get(accent, 'en-GB-SoniaNeural')
+    
+    print(f'[TTS] Azure Neural | voice={voice}')
+    print(f'[TTS] Text: "{text[:60]}"')
+    
+    try:
+        speech_config = speechsdk.SpeechConfig(
+            subscription=speech_key,
+            region=speech_region
         )
-        print('[TTS] Kokoro model loaded ✓')
-    return _kokoro_model
+        speech_config.speech_synthesis_voice_name = voice
+        
+        # Output to memory (no speaker, no file)
+        synthesizer = speechsdk.SpeechSynthesizer(
+            speech_config=speech_config,
+            audio_config=None
+        )
+        
+        result = synthesizer.speak_text_async(
+            text
+        ).get()
+        
+        if result.reason == (
+            speechsdk.ResultReason
+            .SynthesizingAudioCompleted
+        ):
+            audio_bytes = result.audio_data
+            print(f'[TTS] Azure generated '
+                  f'{len(audio_bytes)} bytes ✓')
+            return audio_bytes
+            
+        else:
+            cancellation = (
+                speechsdk.CancellationDetails
+                .from_result(result)
+            )
+            print(f'[TTS] Azure error: '
+                  f'{cancellation.reason}')
+            print(f'[TTS] Detail: '
+                  f'{cancellation.error_details}')
+            # Fallback to gTTS
+            return _gtts_synthesize(text, 'english')
+            
+    except Exception as e:
+        print(f'[TTS] Azure ERROR: {e}')
+        import traceback
+        traceback.print_exc()
+        # Fallback to gTTS on any error
+        return _gtts_synthesize(text, 'english')
 
-# Pre-warm at import time
-print('[TTS] Pre-warming Kokoro...')
-try:
-    # Generate silent 0.1s audio to 
-    # warm up ONNX runtime
-    model = _get_model()
-    model.create("Hello", voice='af_heart')
-    print('[TTS] Kokoro warm ✓')
-except Exception as e:
-    print(f'[TTS] Pre-warm failed: {e}')
 
-# Voice map — uses .bin files in the voices/ directory
-VOICE_MAP = {
-    'american': 'af_heart',   # warm American female
-    'british':  'bf_emma',    # clear British female
-}
-
-# Available fallback voices (in priority order)
-AVAILABLE_VOICES = ['af_heart', 'af_bella', 'bf_emma', 'am_michael', 'bm_george']
-
-
-def _voice_path(voice_id: str) -> str:
-    """Return absolute path to a voice .bin file."""
-    return os.path.join(VOICES_DIR, f'{voice_id}.bin')
-
-
-def _gtts_synthesize(text: str, native_language: str) -> bytes:
+def _gtts_synthesize(text: str,
+                      native_language: str
+                      ) -> bytes:
+    """gTTS for native language speech"""
     from gtts import gTTS
-    import io
     
     lang_map = {
         'hindi':    'hi',
@@ -68,104 +102,61 @@ def _gtts_synthesize(text: str, native_language: str) -> bytes:
         'mandarin': 'zh-CN',
         'english':  'en'
     }
-    lang = lang_map.get(native_language.lower(), 'hi')
+    lang = lang_map.get(
+        native_language.lower(), 'en'
+    )
     
-    print(f'[TTS] gTTS | lang={lang} | text="{text[:50]}"')
+    print(f'[TTS] gTTS | lang={lang} | '
+          f'"{text[:50]}"')
     
     try:
-        tts = gTTS(text=text, lang=lang, slow=False)
+        tts = gTTS(text=text, lang=lang, 
+                   slow=False)
         buf = io.BytesIO()
         tts.write_to_fp(buf)
         buf.seek(0)
         audio = buf.read()
-        print(f'[TTS] gTTS generated {len(audio)} bytes')
+        print(f'[TTS] gTTS generated '
+              f'{len(audio)} bytes')
         return audio
     except Exception as e:
         print(f'[TTS] gTTS ERROR: {e}')
-        # Fallback to English TTS
-        return _kokoro_synthesize(text, 'american')
+        raise e
 
-def _estimate_native_ratio(text: str) -> float:
-    """
-    Estimate if romanized text is native language.
-    Simple heuristic: check for common Hindi/Urdu romanized words.
-    """
-    hindi_markers = [
-        'aaj', 'hum', 'yeh', 'kya', 'hai',
-        'mein', 'aap', 'boliye', 'seekhenge',
-        'accha', 'theek', 'bahut', 'phir',
-        'nahi', 'karo', 'bolo', 'suno'
-    ]
+
+def _is_native_language_text(text: str,
+                               native_language: str
+                               ) -> bool:
+    if native_language == 'english':
+        return False
     
-    text_lower = text.lower()
-    words = text_lower.split()
-    
-    if len(words) == 0:
-        return 0.0
-    
-    native_word_count = sum(
-        1 for word in words 
-        if any(marker in word for marker in hindi_markers)
+    # Detect non-Latin scripts
+    has_devanagari = any(
+        '\u0900' <= c <= '\u097F' for c in text
+    )
+    has_arabic_script = any(
+        '\u0600' <= c <= '\u06FF' for c in text
+    )
+    has_cjk = any(
+        '\u4E00' <= c <= '\u9FFF' for c in text
     )
     
-    return native_word_count / len(words)
-
-def synthesize_speech(text: str, accent: str = 'american', native_language: str = 'english', speed: float = 1.0) -> bytes:
-    """Routes speech synthesis between native (gTTS) and English (Kokoro)."""
+    if has_devanagari or has_arabic_script or has_cjk:
+        return True
     
-    # Detect if text contains native script
-    has_devanagari = any('\u0900' <= c <= '\u097F' for c in text)
-    has_arabic = any('\u0600' <= c <= '\u06FF' for c in text)
-    has_chinese = any('\u4E00' <= c <= '\u9FFF' for c in text)
-    
-    is_native_script = has_devanagari or has_arabic or has_chinese
-    
-    if is_native_script:
-        return _gtts_synthesize(text, native_language)
-    
-    native_ratio = _estimate_native_ratio(text)
-    if native_ratio > 0.4 and native_language.lower() != 'english':
-        return _gtts_synthesize(text, native_language)
-    
-    return _kokoro_synthesize(text, accent, speed)
-
-def _kokoro_synthesize(text: str, accent: str = 'american', speed: float = 1.0) -> bytes:
-    """
-    Synthesize text to speech using Kokoro ONNX.
-    """
-
-    preferred = VOICE_MAP.get(accent, 'af_heart')
-    if os.path.exists(_voice_path(preferred)):
-        voice = preferred
-    else:
-        voice = next(
-            (v for v in AVAILABLE_VOICES if os.path.exists(_voice_path(v))),
-            None
+    # Detect romanized Hindi/Urdu
+    if native_language in ['hindi', 'urdu']:
+        markers = [
+            'aaj', 'hum', 'yeh', 'kya', 'hai',
+            'mein', 'boliye', 'seekhenge',
+            'accha', 'bahut', 'nahi', 'bolo',
+            'suno', 'ab', 'theek', 'chaliye'
+        ]
+        text_lower = text.lower()
+        marker_count = sum(
+            1 for m in markers 
+            if m in text_lower
         )
-        if voice is None:
-            raise RuntimeError(f"No voice .bin files found in {VOICES_DIR}.")
-        print(f'[TTS] Preferred voice {preferred} not found, using fallback: {voice}')
-
-    print(f'[TTS] Synthesizing | accent={accent} | voice={voice}')
-    print(f'[TTS] Text ({len(text)} chars): "{text[:60]}{"..." if len(text) > 60 else ""}"')
-    print(f'[TTS] Model: {MODEL_PATH}')
-
-    if not os.path.exists(MODEL_PATH) or not os.path.exists(VOICES_PATH):
-        raise RuntimeError(f"Kokoro models not found.")
-
-    kokoro = _get_model()
-
-    samples, sample_rate = kokoro.create(
-        text,
-        voice=voice,
-        speed=speed,
-        lang='en-us' if accent == 'american' else 'en-gb',
-    )
-
-    buffer = io.BytesIO()
-    sf.write(buffer, samples, sample_rate, format='WAV')
-    buffer.seek(0)
-    audio_bytes = buffer.read()
-
-    print(f'[TTS] Generated {len(audio_bytes):,} bytes of WAV audio')
-    return audio_bytes
+        return marker_count >= 2
+    
+    return False

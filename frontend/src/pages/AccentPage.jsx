@@ -16,6 +16,7 @@ const ACCENTS = [
     country: "United States",
     desc:    "Clear, confident, and globally recognised. Widely used in business, tech, and entertainment worldwide.",
     traits:  ["Rhotic R", "Flat vowels", "Television standard", "Silicon Valley"],
+    voice:   "en-US-AriaNeural"
   },
   {
     id:      "british",
@@ -25,6 +26,7 @@ const ACCENTS = [
     country: "United Kingdom",
     desc:    "Crisp, precise, and widely respected. The accent of Oxford, the BBC, and international academia.",
     traits:  ["Non-rhotic", "Received Pronunciation", "BBC standard", "Oxford English"],
+    voice:   "en-GB-SoniaNeural"
   },
 ];
 
@@ -200,8 +202,8 @@ export default function AccentPage() {
                 title="Preview this accent's voice"
               >
                 {previewingAccent === a.id
-                  ? <><WaveIcon /> Playing...</>
-                  : <><SpeakerIcon /> Preview voice</>
+                  ? <><WaveIcon /> Playing {a.voice}...</>
+                  : <><SpeakerIcon /> Preview {a.voice}</>
                 }
               </button>
             </div>

@@ -52,3 +52,13 @@ ai_server/*.npz
 ai_server/test.wav
 ai_server/test_output.wav
 nul
+ai_server/azure_test.wav
+ai_server/test_Aria.wav
+ai_server/test_hindi.wav
+ai_server/test_Jenny.wav
+ai_server/test_Nancy.wav
+.gitignore
+ai_server/test_Sara.wav
+.gitignore
+ai_server/test_Sonia.wav
+ai_server/test_Neerja.wav

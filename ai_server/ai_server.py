@@ -532,6 +532,6 @@ if __name__ == "__main__":
     print("✅ LinguaVoice AI Server starting on http://127.0.0.1:5000")
     print("   Whisper: local base model (loads per request, then unloads)")
     print("   LLM:     Groq cloud API — llama-3.1-8b-instant")
-    print("   TTS:     Kokoro local ONNX")
+    print("   TTS:     Azure Neural TTS (en-GB-SoniaNeural)")
     print("   ⚡ Fast start — no local model pre-loading")
     app.run(host="127.0.0.1", port=5000, debug=False, use_reloader=False)

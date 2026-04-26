@@ -43,12 +43,14 @@ torchaudio>=2.2.0
 # Add to ai_server/.env: GROQ_API_KEY=your_key_here
 groq
 
-# TTS — Kokoro ONNX (local, free, American + British voices)
-# Model: onnx-community/Kokoro-82M-v1.0-ONNX
-# Install: pip install kokoro-onnx soundfile
-# Download voices: see README for hf_hub_download commands
-kokoro-onnx
-soundfile
+# TTS — Azure Neural (Primary)
+azure-cognitiveservices-speech
+
+# TTS - gTTS (for native language text fallback)
+gtts
+
+# TTS - edge-tts (backup)
+edge-tts
 
 # Utilities
 numpy>=1.24.0
